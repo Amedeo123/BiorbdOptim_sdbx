@@ -138,7 +138,7 @@ if __name__ == "__main__":
 
 
     # setup MHE
-    Ns_mhe = 2
+    Ns_mhe = 15
     T_mhe = T/Ns*Ns_mhe
     X_est = np.zeros((model.nbQ()*2, Ns+1-Ns_mhe))
     U_est = np.zeros((model.nbGeneralizedTorque()+model.nbMuscleTotal(), Ns-Ns_mhe))
@@ -152,7 +152,7 @@ if __name__ == "__main__":
     ocp.nlp[0].X_bounds.max[:, 0] = x_0
 
     # set initial guess on state
-    ocp.nlp[0].X_init.init = np.tile(x_0, (Ns+1, 1))
+    ocp.nlp[0].X_init.init = np.tile(x_0, (Ns_mhe+1, 1))
 
     objectives = ObjectiveList()
     objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=10000,
@@ -221,10 +221,12 @@ if __name__ == "__main__":
     print(f"Total time to solve with ACADOS : {toc} s")
     print(f"Time per MHE iter. : {toc/(Ns-Ns_mhe)} s")
 
-    err = compute_err(Ns_mhe, X_est, U_est, ocp_ref, sol_ref)
+    err_offset = 15
+    err = compute_err(err_offset, X_est[:, :-err_offset+Ns_mhe], U_est[:, :-err_offset+Ns_mhe], ocp_ref, sol_ref)
 
     f = open("solutions/stats.txt", "a")
-    f.write(f"{Ns_mhe}; {toc/(Ns-Ns_mhe)}; {err['q']}; {err['q_dot']}; {err['tau']}; {err['muscles']}; {err['markers']}")
+    f.write(f"{Ns_mhe}; {toc/(Ns-Ns_mhe)}; {err['q']}; {err['q_dot']}; {err['tau']}; "
+            f"{err['muscles']}; {err['markers']}\n")
     f.close()
 
     print(err)

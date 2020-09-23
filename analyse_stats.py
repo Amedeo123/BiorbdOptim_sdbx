@@ -1,0 +1,68 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
+data = pd.read_csv("solutions/stats.txt", delimiter=';')
+data_sorted = data.sort_values('Nmhe')
+
+Nmhe = np.array(data_sorted['Nmhe'])
+time = np.array(data_sorted['time'])
+err_q = np.array(data_sorted['err_q'])
+err_dq = np.array(data_sorted['err_dq'])
+err_tau = np.array(data_sorted['err_tau'])
+err_muscles = np.array(data_sorted['err_muscles'])
+err_markers = np.array(data_sorted['err_markers'])
+
+fig = plt.subplot(611)
+plt.plot(1/time[:-1])
+fig.set_xticks(range(len(Nmhe)-1))
+fig.set_xticklabels(Nmhe[:-1])
+plt.ylabel('Freq. (Hz)')
+plt.xlabel('Size of MHE window')
+
+fig = plt.subplot(612)
+plt.plot(err_q[:-1], 'x', label='err. mhe')
+plt.plot(np.arange(len(Nmhe)-1), np.tile(err_q[-1], (len(Nmhe)-1, 1)), '--',  label='err. full window')
+fig.set_xticks(range(len(Nmhe)-1))
+fig.set_xticklabels(Nmhe[:-1])
+plt.ylabel('q err. (rad)')
+plt.xlabel('Size of MHE window')
+plt.legend(loc=0)
+
+fig = plt.subplot(613)
+plt.plot(err_dq[:-1], 'x', label='err. mhe')
+plt.plot(np.arange(len(Nmhe)-1), np.tile(err_dq[-1], (len(Nmhe)-1, 1)), '--',  label='err. full window')
+fig.set_xticks(range(len(Nmhe)-1))
+fig.set_xticklabels(Nmhe[:-1])
+plt.ylabel('dq err. (rad/s)')
+plt.xlabel('Size of MHE window')
+plt.legend(loc=0)
+
+
+fig = plt.subplot(614)
+plt.plot(err_tau[:-1], 'x', label='err. mhe')
+plt.plot(np.arange(len(Nmhe)-1), np.tile(err_tau[-1], (len(Nmhe)-1, 1)), '--',  label='err. full window')
+fig.set_xticks(range(len(Nmhe)-1))
+fig.set_xticklabels(Nmhe[:-1])
+plt.ylabel('Tau err. (Nm)')
+plt.xlabel('Size of MHE window')
+plt.legend(loc=0)
+
+fig = plt.subplot(615)
+plt.plot(err_muscles[:-1], 'x', label='err. mhe')
+plt.plot(np.arange(len(Nmhe)-1), np.tile(err_muscles[-1], (len(Nmhe)-1, 1)), '--',  label='err. full window')
+fig.set_xticks(range(len(Nmhe)-1))
+fig.set_xticklabels(Nmhe[:-1])
+plt.ylabel('Muscle act. err.')
+plt.xlabel('Size of MHE window')
+plt.legend(loc=0)
+
+fig = plt.subplot(616)
+plt.plot(err_markers[:-1], 'x', label='err. mhe')
+plt.plot(np.arange(len(Nmhe)-1), np.tile(err_markers[-1], (len(Nmhe)-1, 1)), '--',  label='err. full window')
+fig.set_xticks(range(len(Nmhe)-1))
+fig.set_xticklabels(Nmhe[:-1])
+plt.ylabel('Marker err. (m)')
+plt.xlabel('Size of MHE window')
+plt.legend(loc=0)
+plt.show()

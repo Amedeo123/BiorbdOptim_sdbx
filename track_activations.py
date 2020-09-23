@@ -2,6 +2,7 @@ import biorbd
 from time import time
 import numpy as np
 from casadi import MX, Function
+import matplotlib.pyplot as plt
 
 from biorbd_optim import (
     OptimalControlProgram,
@@ -19,22 +20,27 @@ from biorbd_optim import (
     InterpolationType,
 )
 
-def compute_err(ocp ,sol, ocp_ref, sol_ref):
-    data = Data.get_data(ocp, sol)
+def compute_err(Ns_mhe, X_est ,U_est, ocp_ref, sol_ref):
     data_ref = Data.get_data(ocp_ref, sol_ref)
-    model = ocp.nlp[0].model
+    model = ocp_ref.nlp[0].model
     get_markers = markers_fun(model)
     err = dict()
-    sol_mark = np.zeros((3, model.nbMarkers(), ocp.nlp[0].ns+1))
-    sol_mark_ref = np.zeros((3, model.nbMarkers(), ocp.nlp[0].ns+1))
-    err['q'] = np.linalg.norm(data[0]['q']-data_ref[0]['q'])
-    err['q_dot'] = np.linalg.norm(data[0]['q_dot']-data_ref[0]['q_dot'])
-    err['tau'] = np.linalg.norm(data[1]['tau']-data_ref[1]['tau'])
-    err['muscles'] = np.linalg.norm(data[1]['muscles']-data_ref[1]['muscles'])
-    for i in range(ocp.nlp[0].ns+1):
-        sol_mark[:, :, i] = get_markers(data[0]['q'][:, i])
+    Ns = ocp_ref.nlp[0].ns
+    norm_err = np.sqrt(Ns-Ns_mhe)
+    q_ref = data_ref[0]['q'][:, :-Ns_mhe]
+    dq_ref = data_ref[0]['q_dot'][:, :-Ns_mhe]
+    tau_ref = data_ref[1]['tau'][:, :-Ns_mhe-1]
+    musces_ref = data_ref[1]['muscles'][:, :-Ns_mhe-1]
+    sol_mark = np.zeros((3, model.nbMarkers(), Ns+1-Ns_mhe))
+    sol_mark_ref = np.zeros((3, model.nbMarkers(), Ns+1-Ns_mhe))
+    err['q'] = np.linalg.norm(X_est[:model.nbQ(), :]-q_ref)/norm_err
+    err['q_dot'] = np.linalg.norm(X_est[model.nbQ():, :]-dq_ref)/norm_err
+    err['tau'] = np.linalg.norm(U_est[:model.nbGeneralizedTorque(), :]-tau_ref)/norm_err
+    err['muscles'] = np.linalg.norm(U_est[model.nbGeneralizedTorque():, :]-musces_ref)/norm_err
+    for i in range(Ns+1-Ns_mhe):
+        sol_mark[:, :, i] = get_markers(X_est[:model.nbQ(), i])
         sol_mark_ref[:, :, i] = get_markers(data_ref[0]['q'][:, i])
-    err['markers'] = np.linalg.norm(sol_mark - sol_mark_ref)
+    err['markers'] = np.linalg.norm(sol_mark - sol_mark_ref)/norm_err
     return err
 
 def markers_fun(biorbd_model):
@@ -105,6 +111,8 @@ if __name__ == "__main__":
     data_sol = Data.get_data(ocp_ref, sol_ref)
     q_sol = data_sol[0]['q']
     dq_sol = data_sol[0]['q_dot']
+    tau_sol = data_sol[1]['tau']
+    muscle_sol = data_sol[1]['muscles']
     x_0 = np.hstack([q_sol[:, 0], dq_sol[:, 0]])
 
     # get targets
@@ -141,7 +149,7 @@ if __name__ == "__main__":
                             "nlp_solver_tol_stat": 1e-4,
                             "integrator_type": "IRK",
                             "nlp_solver_type": "SQP",
-                            "sim_method_num_steps": 2,
+                            "sim_method_num_steps": 1,
                         })
         print(f"Time to solve with ACADOS : {time()-tic} s")
     else:
@@ -160,9 +168,46 @@ if __name__ == "__main__":
             })
         print(f"Time to solve with IPOPT : {time() - tic} s")
 
-    err = compute_err(ocp, sol, ocp_ref, sol_ref)
-    print(err)
+    toc = time() - tic
+    print(f"Total time to solve with ACADOS : {toc} s")
 
+    data_sol = Data.get_data(ocp, sol)
+    X_est = np.vstack([data_sol[0]['q'], data_sol[0]['q_dot']])
+    U_est = np.vstack([data_sol[1]['tau'], data_sol[1]['muscles']])
+
+    err_offset = 15
+    err = compute_err(err_offset, X_est[:, :-err_offset], U_est[:, :-err_offset-1], ocp_ref, sol_ref)
+    print(err)
+    f = open("solutions/stats.txt", "a")
+    f.write(f"{Ns}; {toc}; {err['q']}; {err['q_dot']}; {err['tau']}; "
+            f"{err['muscles']}; {err['markers']}\n")
+    f.close()
+
+    plt.subplot(211)
+    plt.plot(X_est[:model.nbQ(), :].T, 'x', label='Q estimate')
+    plt.gca().set_prop_cycle(None)
+    plt.plot(q_sol.T, label='Q truth')
+    plt.legend()
+    plt.subplot(212)
+    plt.plot(X_est[model.nbQ():, :].T, 'x', label='Qdot estimate')
+    plt.gca().set_prop_cycle(None)
+    plt.plot(dq_sol.T, label='Qdot truth')
+    plt.legend()
+    plt.tight_layout()
+
+    plt.figure()
+    plt.subplot(211)
+    plt.plot(U_est[:model.nbGeneralizedTorque(), :].T, 'x', label='Tau estimate')
+    plt.gca().set_prop_cycle(None)
+    plt.plot(tau_sol.T, label='Tau truth')
+    plt.legend()
+    plt.subplot(212)
+    plt.plot(U_est[model.nbGeneralizedTorque():, :].T, 'x', label='Muscle activation estimate')
+    plt.gca().set_prop_cycle(None)
+    plt.plot(muscle_sol.T, label='Muscle activation truth')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
 
     # --- Show results --- #
     result = ShowResult(ocp, sol)
