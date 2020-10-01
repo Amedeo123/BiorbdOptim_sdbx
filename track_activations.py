@@ -104,7 +104,7 @@ def prepare_ocp(biorbd_model_path, final_time, x0, number_shooting_points, use_S
 if __name__ == "__main__":
 
     use_ACADOS = True
-    ocp_ref, sol_ref = OptimalControlProgram.load(f"solutions/sim_ip_1000ms_100sn_ext_wt_rot_scap.bo")
+    ocp_ref, sol_ref = OptimalControlProgram.load(f"solutions/sim_ip_1000ms_100sn_EXT.bo")
     T = ocp_ref.nlp[0].tf
     Ns = ocp_ref.nlp[0].ns
     model = ocp_ref.nlp[0].model

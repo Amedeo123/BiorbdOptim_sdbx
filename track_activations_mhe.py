@@ -118,7 +118,10 @@ def prepare_ocp(biorbd_model_path, final_time, x0, number_shooting_points, use_S
 if __name__ == "__main__":
 
     use_ACADOS = True
-    ocp_ref, sol_ref = OptimalControlProgram.load(f"solutions/sim_ip_1000ms_100sn_ext_wt_rot_scap.bo")
+    WRITE_STATS = False
+    stats_file = 'stats_flex'
+
+    ocp_ref, sol_ref = OptimalControlProgram.load(f"solutions/sim_ip_1000ms_100sn_REACH.bo")
     T = ocp_ref.nlp[0].tf
     Ns = ocp_ref.nlp[0].ns
     model = ocp_ref.nlp[0].model
@@ -138,7 +141,7 @@ if __name__ == "__main__":
 
 
     # setup MHE
-    Ns_mhe = 15
+    Ns_mhe = 6
     T_mhe = T/Ns*Ns_mhe
     X_est = np.zeros((model.nbQ()*2, Ns+1-Ns_mhe))
     U_est = np.zeros((model.nbGeneralizedTorque()+model.nbMuscleTotal(), Ns-Ns_mhe))
@@ -224,10 +227,11 @@ if __name__ == "__main__":
     err_offset = 15
     err = compute_err(err_offset, X_est[:, :-err_offset+Ns_mhe], U_est[:, :-err_offset+Ns_mhe], ocp_ref, sol_ref)
 
-    f = open("solutions/stats.txt", "a")
-    f.write(f"{Ns_mhe}; {toc/(Ns-Ns_mhe)}; {err['q']}; {err['q_dot']}; {err['tau']}; "
-            f"{err['muscles']}; {err['markers']}\n")
-    f.close()
+    if WRITE_STATS:
+        f = open(f"solutions/{stats_file}.txt", "a")
+        f.write(f"{Ns_mhe}; {toc/(Ns-Ns_mhe)}; {err['q']}; {err['q_dot']}; {err['tau']}; "
+                f"{err['muscles']}; {err['markers']}\n")
+        f.close()
 
     print(err)
     plt.subplot(211)

@@ -45,6 +45,7 @@ external_forces	0
 			0.000000	0.989495	0.000000
 			0.000000	0.000000	5.642031
 		com	0.000000	-0.44045	0.000000
+		meshfile Geometry/thorax.vtp
 	endsegment
 
 	// Markers
@@ -86,8 +87,7 @@ external_forces	0
 			0.000000	0.000111	0.000000
 			0.000000	0.000000	0.000111
 		com	0.000000	0.000000	0.000000
-		mesh 0 0 0
-		mesh 0.006440 0.007056 0.025930
+		meshfile Geometry/hat_spine.vtp
 	endsegment
 	
 // Clavicle
