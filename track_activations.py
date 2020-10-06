@@ -4,7 +4,7 @@ import numpy as np
 from casadi import MX, Function
 import matplotlib.pyplot as plt
 
-from biorbd_optim import (
+from bioptim import (
     OptimalControlProgram,
     ObjectiveList,
     Objective,

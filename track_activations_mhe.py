@@ -4,7 +4,7 @@ import numpy as np
 from casadi import MX, Function
 import matplotlib.pyplot as plt
 
-from biorbd_optim import (
+from bioptim import (
     OptimalControlProgram,
     ObjectiveList,
     Objective,
@@ -119,9 +119,10 @@ if __name__ == "__main__":
 
     use_ACADOS = True
     WRITE_STATS = False
+    TRACK_EMG = True
     stats_file = 'stats_flex'
 
-    ocp_ref, sol_ref = OptimalControlProgram.load(f"solutions/sim_ip_1000ms_100sn_REACH.bo")
+    ocp_ref, sol_ref = OptimalControlProgram.load(f"solutions/sim_ip_1000ms_100sn_EXT2.bo")
     T = ocp_ref.nlp[0].tf
     Ns = ocp_ref.nlp[0].ns
     model = ocp_ref.nlp[0].model
@@ -130,7 +131,11 @@ if __name__ == "__main__":
     dq_sol = data_sol[0]['q_dot']
     tau_sol = data_sol[1]['tau']
     muscle_sol = data_sol[1]['muscles']
-    x_0 = np.hstack([q_sol[:, 0], dq_sol[:, 0]])
+    x0 = np.hstack([q_sol[:, 0], dq_sol[:, 0]])
+    tau_init = 0
+    muscle_init = 0.5
+    nbGT = model.nbGeneralizedTorque()
+    nbMT = model.nbMuscleTotal()
 
     # get targets
     get_markers = markers_fun(model)
@@ -147,23 +152,32 @@ if __name__ == "__main__":
     U_est = np.zeros((model.nbGeneralizedTorque()+model.nbMuscleTotal(), Ns-Ns_mhe))
 
 
-    ocp = prepare_ocp(biorbd_model_path="arm_wt_rot_scap.bioMod", final_time=T_mhe, x0=x_0,
+    ocp = prepare_ocp(biorbd_model_path="arm_wt_rot_scap.bioMod", final_time=T_mhe, x0=x0,
                       number_shooting_points=Ns_mhe, use_SX=use_ACADOS)
 
     # set initial state
-    ocp.nlp[0].X_bounds.min[:, 0] = x_0
-    ocp.nlp[0].X_bounds.max[:, 0] = x_0
+    ocp.nlp[0].X_bounds.min[:, 0] = x0
+    ocp.nlp[0].X_bounds.max[:, 0] = x0
 
     # set initial guess on state
-    ocp.nlp[0].X_init.init = np.tile(x_0, (Ns_mhe+1, 1))
+    x_init = InitialConditionsOption(x0, interpolation=InterpolationType.CONSTANT)
+    u0 = np.array([tau_init] * nbGT + [muscle_init] * nbMT)+0.1
+    u_init = InitialConditionsOption(u0, interpolation=InterpolationType.CONSTANT)
+    ocp.update_initial_guess(x_init, u_init)
 
     objectives = ObjectiveList()
-    objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=10000,
-                   target=muscles_target[:, :Ns_mhe], idx=0)
+    if TRACK_EMG:
+        objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=10000,
+                       target=muscles_target[:, :Ns_mhe],
+                       idx=0)
+        objectives.add(Objective.Lagrange.MINIMIZE_TORQUE, weight=10, idx=1)
+    else:
+        objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=10000,
+                       idx=0)
+        objectives.add(Objective.Lagrange.MINIMIZE_TORQUE, weight=500, idx=1)
     objectives.add(Objective.Lagrange.MINIMIZE_MARKERS, weight=1000000,
-                   target=markers_target[:, :, :Ns_mhe+1], idx=1)
-    objectives.add(Objective.Lagrange.MINIMIZE_STATE, weight=10, idx=2)
-    objectives.add(Objective.Lagrange.MINIMIZE_TORQUE, weight=100, idx=3)
+                   target=markers_target[:, :, :Ns_mhe+1], idx=2)
+    objectives.add(Objective.Lagrange.MINIMIZE_STATE, weight=10, idx=3)
     ocp.update_objectives(objectives)
 
     sol = ocp.solve(solver=Solver.ACADOS,
@@ -192,13 +206,24 @@ if __name__ == "__main__":
         ocp.nlp[0].X_init.init = x0
         ocp.nlp[0].U_init.init = u0
 
+        x_init = InitialConditionsOption(x0, interpolation=InterpolationType.EACH_FRAME)
+        u_init = InitialConditionsOption(u0, interpolation=InterpolationType.EACH_FRAME)
+        ocp.update_initial_guess(x_init, u_init)
+
         objectives = ObjectiveList()
-        objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=10000,
-                       target=muscles_target[:, i:Ns_mhe+i], idx=0)
+        if TRACK_EMG:
+            objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=10000,
+                           target=muscles_target[:, i:Ns_mhe+i],
+                           idx=0)
+            objectives.add(Objective.Lagrange.MINIMIZE_TORQUE, weight=10, idx=1)
+        else:
+            objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=10000,
+                           idx=0)
+            objectives.add(Objective.Lagrange.MINIMIZE_TORQUE, weight=500, idx=1)
+
         objectives.add(Objective.Lagrange.MINIMIZE_MARKERS, weight=1000000,
-                       target=markers_target[:, :, i:Ns_mhe+i+1], idx=1)
-        objectives.add(Objective.Lagrange.MINIMIZE_STATE, weight=10, idx=2)
-        objectives.add(Objective.Lagrange.MINIMIZE_TORQUE, weight=100, idx=3)
+                       target=markers_target[:, :, i:Ns_mhe+i+1], idx=2)
+        objectives.add(Objective.Lagrange.MINIMIZE_STATE, weight=10, idx=3)
         ocp.update_objectives(objectives)
 
         sol = ocp.solve(solver=Solver.ACADOS,
@@ -235,27 +260,38 @@ if __name__ == "__main__":
 
     print(err)
     plt.subplot(211)
-    plt.plot(X_est[:model.nbQ(), :].T, 'x', label='Q estimate')
+    for est, name in zip(X_est[:model.nbQ(), :], model.nameDof()):
+        plt.plot(est, 'x', label=name.to_string()+'_q_est')
     plt.gca().set_prop_cycle(None)
-    plt.plot(q_sol.T, label='Q truth')
+    for tru, name in zip(q_sol, model.nameDof()):
+        plt.plot(tru, label=name.to_string()+'_q_tru')
     plt.legend()
+
     plt.subplot(212)
-    plt.plot(X_est[model.nbQ():, :].T, 'x', label='Qdot estimate')
+    for est, name in zip(X_est[model.nbQ():, :], model.nameDof()):
+        plt.plot(est, 'x', label=name.to_string()+'_qdot_est')
     plt.gca().set_prop_cycle(None)
-    plt.plot(dq_sol.T, label='Qdot truth')
+    for tru, name in zip(dq_sol, model.nameDof()):
+        plt.plot(tru, label=name.to_string()+'_qdot_tru')
     plt.legend()
     plt.tight_layout()
 
     plt.figure()
     plt.subplot(211)
-    plt.plot(U_est[:model.nbGeneralizedTorque(), :].T, 'x', label='Tau estimate')
+    for est, name in zip(U_est[:model.nbGeneralizedTorque(), :], model.nameDof()):
+        plt.plot(est, 'x', label=name.to_string()+'_tau_est')
     plt.gca().set_prop_cycle(None)
-    plt.plot(tau_sol.T, label='Tau truth')
+    for tru, name in zip(tau_sol, model.nameDof()):
+        plt.plot(tru, label=name.to_string()+'_tau_tru')
     plt.legend()
+
     plt.subplot(212)
-    plt.plot(U_est[model.nbGeneralizedTorque():, :].T, 'x', label='Muscle activation estimate')
+    for est, name in zip(U_est[model.nbGeneralizedTorque():, :], model.muscleNames()):
+        plt.plot(est, 'x', label=name.to_string()+'_est')
     plt.gca().set_prop_cycle(None)
-    plt.plot(muscle_sol.T, label='Muscle activation truth')
-    plt.legend()
+    for tru, name in zip(muscle_sol, model.muscleNames()):
+        plt.plot(tru, label=name.to_string()+'_tru')
+    plt.legend(fontsize=5)
     plt.tight_layout()
     plt.show()
+    print()

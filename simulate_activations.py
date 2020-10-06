@@ -1,10 +1,10 @@
 import biorbd
 from time import time
 import numpy as np
-from BiorbdViz import BiorbdViz
+from bioviz import Viz
 import os.path
 
-from biorbd_optim import (
+from bioptim import (
     OptimalControlProgram,
     ObjectiveList,
     Objective,
@@ -34,7 +34,7 @@ def prepare_ocp(biorbd_model_path, final_time, number_shooting_points, x0, xT, u
     objective_functions.add(Objective.Lagrange.MINIMIZE_TORQUE, weight=100)
     objective_functions.add(Objective.Lagrange.MINIMIZE_STATE, weight=10000, states_idx=np.array(range(0, nbQ)))
     objective_functions.add(Objective.Lagrange.MINIMIZE_STATE, weight=10000, states_idx=np.array(range(nbQ, nbQ*2)))
-    objective_functions.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=10)
+    objective_functions.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=100)
     objective_functions.add(Objective.Mayer.MINIMIZE_STATE, weight=1000000,
                             target=np.tile(xT, (number_shooting_points+1, 1)).T, states_idx=np.array(range(0, nbQ)))
 
@@ -90,13 +90,13 @@ if __name__ == "__main__":
         xT = np.array([-1, 1, 1, 0.1, 0, 0, 0, 0])
     if motion == 'EXT2':
         x0 = np.array([-2., 1.5, 2.5, 1.3, 0., 0., 0., 0.])
-        xT = np.array([-2., 0.8, 2.5, -0.2, 0., 0., 0., 0.])
+        xT = np.array([-2., 0.8, 2.2, -0.2, 0., 0., 0., 0.])
     if motion == 'REACH':
         x0 = np.array([0., -0.2, 0, 0, 0, 0, 0, 0])
         xT = np.array([0.6, -1, 0, 0.5, 0, 0, 0, 0])
     use_ACADOS = False
-    use_IPOPT = False
-    use_BO = True
+    use_IPOPT = True
+    use_BO = False
 
     if use_IPOPT:
         ocp = prepare_ocp(biorbd_model_path="arm_wt_rot_scap.bioMod", final_time=T, number_shooting_points=Ns,
