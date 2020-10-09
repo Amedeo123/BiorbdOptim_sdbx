@@ -13,7 +13,7 @@ from bioptim import (
     DynamicsType,
     BoundsList,
     QAndQDotBounds,
-    InitialConditionsOption,
+    InitialGuessOption,
     ShowResult,
     Solver,
     InterpolationType,
@@ -92,12 +92,12 @@ def prepare_ocp(biorbd_model_path, final_time, x0, number_shooting_points, use_S
     )
 
     # Initial guesses
-    x_init = InitialConditionsOption(np.tile(x0, (number_shooting_points+1, 1)).T,
-                                     interpolation=InterpolationType.EACH_FRAME)
+    x_init = InitialGuessOption(np.tile(x0, (number_shooting_points+1, 1)).T,
+                                interpolation=InterpolationType.EACH_FRAME)
 
     u0 = np.array([tau_init] * nbGT + [muscle_init] * nbMT)+0.1
-    u_init = InitialConditionsOption(np.tile(u0, (number_shooting_points, 1)).T,
-                                     interpolation=InterpolationType.EACH_FRAME)
+    u_init = InitialGuessOption(np.tile(u0, (number_shooting_points, 1)).T,
+                                interpolation=InterpolationType.EACH_FRAME)
     # ------------- #
 
     return OptimalControlProgram(
@@ -118,11 +118,11 @@ def prepare_ocp(biorbd_model_path, final_time, x0, number_shooting_points, use_S
 if __name__ == "__main__":
 
     use_ACADOS = True
-    WRITE_STATS = False
+    WRITE_STATS = True
     TRACK_EMG = True
-    stats_file = 'stats_flex'
+    stats_file = 'stats_1_th'
 
-    ocp_ref, sol_ref = OptimalControlProgram.load(f"solutions/sim_ip_1000ms_100sn_EXT2.bo")
+    ocp_ref, sol_ref = OptimalControlProgram.load(f"solutions/sim_ac_1500ms_120sn_REACH2_1.bo")
     T = ocp_ref.nlp[0].tf
     Ns = ocp_ref.nlp[0].ns
     model = ocp_ref.nlp[0].model
@@ -144,25 +144,23 @@ if __name__ == "__main__":
         markers_target[:, :, i] = get_markers(q_sol[:, i])
     muscles_target = muscle_sol
 
-
     # setup MHE
-    Ns_mhe = 6
+    Ns_mhe = 14
     T_mhe = T/Ns*Ns_mhe
     X_est = np.zeros((model.nbQ()*2, Ns+1-Ns_mhe))
     U_est = np.zeros((model.nbGeneralizedTorque()+model.nbMuscleTotal(), Ns-Ns_mhe))
-
 
     ocp = prepare_ocp(biorbd_model_path="arm_wt_rot_scap.bioMod", final_time=T_mhe, x0=x0,
                       number_shooting_points=Ns_mhe, use_SX=use_ACADOS)
 
     # set initial state
-    ocp.nlp[0].X_bounds.min[:, 0] = x0
-    ocp.nlp[0].X_bounds.max[:, 0] = x0
+    ocp.nlp[0].x_bounds.min[:, 0] = x0
+    ocp.nlp[0].x_bounds.max[:, 0] = x0
 
     # set initial guess on state
-    x_init = InitialConditionsOption(x0, interpolation=InterpolationType.CONSTANT)
+    x_init = InitialGuessOption(x0, interpolation=InterpolationType.CONSTANT)
     u0 = np.array([tau_init] * nbGT + [muscle_init] * nbMT)+0.1
-    u_init = InitialConditionsOption(u0, interpolation=InterpolationType.CONSTANT)
+    u_init = InitialGuessOption(u0, interpolation=InterpolationType.CONSTANT)
     ocp.update_initial_guess(x_init, u_init)
 
     objectives = ObjectiveList()
@@ -175,7 +173,7 @@ if __name__ == "__main__":
         objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=10000,
                        idx=0)
         objectives.add(Objective.Lagrange.MINIMIZE_TORQUE, weight=500, idx=1)
-    objectives.add(Objective.Lagrange.MINIMIZE_MARKERS, weight=1000000,
+    objectives.add(Objective.Lagrange.MINIMIZE_MARKERS, weight=100000,
                    target=markers_target[:, :, :Ns_mhe+1], idx=2)
     objectives.add(Objective.Lagrange.MINIMIZE_STATE, weight=10, idx=3)
     ocp.update_objectives(objectives)
@@ -199,15 +197,15 @@ if __name__ == "__main__":
     for i in range(1, Ns-Ns_mhe+1):
         cnt += 1
         # set initial state
-        ocp.nlp[0].X_bounds.min[:, 0] = x0[:, 0]
-        ocp.nlp[0].X_bounds.max[:, 0] = x0[:, 0]
+        ocp.nlp[0].x_bounds.min[:, 0] = x0[:, 0]
+        ocp.nlp[0].x_bounds.max[:, 0] = x0[:, 0]
 
         # set initial guess on state
-        ocp.nlp[0].X_init.init = x0
-        ocp.nlp[0].U_init.init = u0
+        # ocp.nlp[0].X_init.init = x0
+        # ocp.nlp[0].U_init.init = u0
 
-        x_init = InitialConditionsOption(x0, interpolation=InterpolationType.EACH_FRAME)
-        u_init = InitialConditionsOption(u0, interpolation=InterpolationType.EACH_FRAME)
+        x_init = InitialGuessOption(x0, interpolation=InterpolationType.EACH_FRAME)
+        u_init = InitialGuessOption(u0, interpolation=InterpolationType.EACH_FRAME)
         ocp.update_initial_guess(x_init, u_init)
 
         objectives = ObjectiveList()

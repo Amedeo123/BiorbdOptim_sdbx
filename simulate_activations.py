@@ -12,8 +12,8 @@ from bioptim import (
     DynamicsType,
     BoundsList,
     QAndQDotBounds,
-    InitialConditionsList,
-    InitialConditionsOption,
+    InitialGuessList,
+    InitialGuessOption,
     ShowResult,
     Solver,
     InterpolationType,
@@ -26,7 +26,7 @@ def prepare_ocp(biorbd_model_path, final_time, number_shooting_points, x0, xT, u
     biorbd_model = biorbd.Model(biorbd_model_path)
     nbQ = biorbd_model.nbQ()
 
-    tau_min, tau_max, tau_init = -100, 100, 0
+    tau_min, tau_max, tau_init = -10, 10, 0
     muscle_min, muscle_max, muscle_init = 0, 1, 0.5
 
     # Add objective functions
@@ -57,11 +57,11 @@ def prepare_ocp(biorbd_model_path, final_time, number_shooting_points, x0, xT, u
     )
 
     # Initial guesses
-    x_init = InitialConditionsOption(np.tile(x0, (number_shooting_points+1, 1)).T,
+    x_init = InitialGuessOption(np.tile(x0, (number_shooting_points+1, 1)).T,
                                      interpolation=InterpolationType.EACH_FRAME)
 
     u0 = np.array([tau_init] * biorbd_model.nbGeneralizedTorque() + [muscle_init] * biorbd_model.nbMuscleTotal())
-    u_init = InitialConditionsOption(np.tile(u0, (number_shooting_points, 1)).T,
+    u_init = InitialGuessOption(np.tile(u0, (number_shooting_points, 1)).T,
                                      interpolation=InterpolationType.EACH_FRAME)
     # ------------- #
 
@@ -82,9 +82,9 @@ def prepare_ocp(biorbd_model_path, final_time, number_shooting_points, x0, xT, u
 
 if __name__ == "__main__":
 
-    T = 1.0
-    Ns = 100
-    motion = 'EXT2'  # 'EXT', 'REACH'
+    T = 1.5
+    Ns = 500
+    motion = 'REACH2'  # 'EXT', 'REACH'
     if motion == 'EXT':
         x0 = np.array([-1, 1, 1, 1, 0, 0, 0, 0])
         xT = np.array([-1, 1, 1, 0.1, 0, 0, 0, 0])
@@ -94,9 +94,32 @@ if __name__ == "__main__":
     if motion == 'REACH':
         x0 = np.array([0., -0.2, 0, 0, 0, 0, 0, 0])
         xT = np.array([0.6, -1, 0, 0.5, 0, 0, 0, 0])
-    use_ACADOS = False
-    use_IPOPT = True
+    if motion == 'REACH2':
+        x0 = np.array([0., -0.2, 0, 0, 0, 0, 0, 0])
+        xT = np.array([1.2, -1.9, 0, 1.1, 0, 0, 0, 0])
+    use_ACADOS = True
+    use_IPOPT = False
     use_BO = False
+
+    if use_ACADOS:
+        ocp = prepare_ocp(biorbd_model_path="arm_wt_rot_scap.bioMod", final_time=T, number_shooting_points=Ns,
+                          x0=x0, xT=xT, use_SX=True)
+
+        sol = ocp.solve(
+            solver=Solver.ACADOS,
+            show_online_optim=False,
+            solver_options={
+                "nlp_solver_tol_comp": 1e-4,
+                "nlp_solver_tol_eq": 1e-4,
+                "nlp_solver_tol_stat": 1e-4,
+                "integrator_type": "IRK",
+                "nlp_solver_type": "SQP",
+                "sim_method_num_steps": 5,
+            })
+        if os.path.isfile(f"solutions/sim_ac_{int(T*1000)}ms_{Ns}sn_{motion}.bo"):
+            ocp.save(sol, f"solutions/sim_ac_{int(T*1000)}ms_{Ns}sn_{motion}_1.bo")
+        else:
+            ocp.save(sol, f"solutions/sim_ac_{int(T*1000)}ms_{Ns}sn_{motion}.bo")
 
     if use_IPOPT:
         ocp = prepare_ocp(biorbd_model_path="arm_wt_rot_scap.bioMod", final_time=T, number_shooting_points=Ns,

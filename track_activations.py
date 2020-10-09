@@ -13,8 +13,8 @@ from bioptim import (
     DynamicsType,
     BoundsList,
     QAndQDotBounds,
-    InitialConditionsList,
-    InitialConditionsOption,
+    InitialGuessList,
+    InitialGuessOption,
     ShowResult,
     Solver,
     InterpolationType,
@@ -78,11 +78,11 @@ def prepare_ocp(biorbd_model_path, final_time, x0, number_shooting_points, use_S
     )
 
     # Initial guesses
-    x_init = InitialConditionsOption(np.tile(x0, (number_shooting_points+1, 1)).T,
+    x_init = InitialGuessOption(np.tile(x0, (number_shooting_points+1, 1)).T,
                                      interpolation=InterpolationType.EACH_FRAME)
 
     u0 = np.array([tau_init] * nbGT + [muscle_init] * nbMT)+0.1
-    u_init = InitialConditionsOption(np.tile(u0, (number_shooting_points, 1)).T,
+    u_init = InitialGuessOption(np.tile(u0, (number_shooting_points, 1)).T,
                                      interpolation=InterpolationType.EACH_FRAME)
     # ------------- #
 
@@ -104,7 +104,7 @@ def prepare_ocp(biorbd_model_path, final_time, x0, number_shooting_points, use_S
 if __name__ == "__main__":
 
     use_ACADOS = True
-    ocp_ref, sol_ref = OptimalControlProgram.load(f"solutions/sim_ip_1000ms_100sn_EXT.bo")
+    ocp_ref, sol_ref = OptimalControlProgram.load(f"solutions/sim_ac_1500ms_120sn_REACH2_1.bo")
     T = ocp_ref.nlp[0].tf
     Ns = ocp_ref.nlp[0].ns
     model = ocp_ref.nlp[0].model
@@ -113,7 +113,11 @@ if __name__ == "__main__":
     dq_sol = data_sol[0]['q_dot']
     tau_sol = data_sol[1]['tau']
     muscle_sol = data_sol[1]['muscles']
-    x_0 = np.hstack([q_sol[:, 0], dq_sol[:, 0]])
+    x0 = np.hstack([q_sol[:, 0], dq_sol[:, 0]])
+    tau_init = 0
+    muscle_init = 0.5
+    nbGT = model.nbGeneralizedTorque()
+    nbMT = model.nbMuscleTotal()
 
     # get targets
     get_markers = markers_fun(model)
@@ -122,21 +126,24 @@ if __name__ == "__main__":
         markers_target[:, :, i] = get_markers(q_sol[:, i])
     muscles_target = data_sol[1]['muscles']
 
-    ocp = prepare_ocp(biorbd_model_path="arm_wt_rot_scap.bioMod", final_time=T, x0=x_0,
+    ocp = prepare_ocp(biorbd_model_path="arm_wt_rot_scap.bioMod", final_time=T, x0=x0,
                       number_shooting_points=Ns, use_SX=use_ACADOS)
 
     # set initial state
-    ocp.nlp[0].X_bounds.min[:, 0] = x_0
-    ocp.nlp[0].X_bounds.max[:, 0] = x_0
+    ocp.nlp[0].x_bounds.min[:, 0] = x0
+    ocp.nlp[0].x_bounds.max[:, 0] = x0
 
     # set initial guess on state
-    # ocp.nlp[0].X_init.init = np.tile(x_0, (Ns+1, 1))
+    x_init = InitialGuessOption(x0, interpolation=InterpolationType.CONSTANT)
+    u0 = np.array([tau_init] * nbGT + [muscle_init] * nbMT)
+    u_init = InitialGuessOption(u0, interpolation=InterpolationType.CONSTANT)
+    ocp.update_initial_guess(x_init, u_init)
 
     objectives = ObjectiveList()
     objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=10000, target=muscles_target)
-    objectives.add(Objective.Lagrange.MINIMIZE_MARKERS, weight=1000000, target=markers_target)
+    objectives.add(Objective.Lagrange.MINIMIZE_MARKERS, weight=100000, target=markers_target)
     objectives.add(Objective.Lagrange.MINIMIZE_STATE, weight=10)
-    objectives.add(Objective.Lagrange.MINIMIZE_TORQUE, weight=100)
+    objectives.add(Objective.Lagrange.MINIMIZE_TORQUE, weight=10)
     ocp.update_objectives(objectives)
 
     if use_ACADOS:
@@ -178,7 +185,7 @@ if __name__ == "__main__":
     err_offset = 15
     err = compute_err(err_offset, X_est[:, :-err_offset], U_est[:, :-err_offset-1], ocp_ref, sol_ref)
     print(err)
-    f = open("solutions/stats.txt", "a")
+    f = open("solutions/stats_flex.txt", "a")
     f.write(f"{Ns}; {toc}; {err['q']}; {err['q_dot']}; {err['tau']}; "
             f"{err['muscles']}; {err['markers']}\n")
     f.close()
