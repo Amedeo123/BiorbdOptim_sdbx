@@ -24,10 +24,10 @@ from bioptim import (
 )
 
 
-def prepare_ocp(biorbd_model_path, final_time, number_shooting_points, x0, xT, use_SX=False, nb_threads=1):
+def prepare_ocp(biorbd_model, final_time, number_shooting_points, x0, xT, co_value, use_SX=False, nb_threads=1):
     # --- Options --- #
     # Model path
-    biorbd_model = biorbd.Model(biorbd_model_path)
+    biorbd_model = biorbd_model
     nbQ = biorbd_model.nbQ()
 
     # tau_min, tau_max, tau_init = -10, 10, 0
@@ -39,7 +39,9 @@ def prepare_ocp(biorbd_model_path, final_time, number_shooting_points, x0, xT, u
     # objective_functions.add(Objective.Lagrange.MINIMIZE_TORQUE, weight=100)
     objective_functions.add(Objective.Lagrange.MINIMIZE_STATE, weight=1000, states_idx=np.array(range(nbQ)))
     objective_functions.add(Objective.Lagrange.MINIMIZE_STATE, weight=1000, states_idx=np.array(range(nbQ, nbQ*2)))
-    objective_functions.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=100)
+    # objective_functions.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=100)
+    objective_functions.add(Objective.Lagrange.TRACK_MUSCLES_CONTROL, weight=100,
+                            target=co_value)
     objective_functions.add(Objective.Mayer.TRACK_STATE, weight=100000,
                             target=np.tile(xT, (number_shooting_points+1, 1)).T, states_idx=np.array(range(0, nbQ*2)))
 
@@ -51,8 +53,7 @@ def prepare_ocp(biorbd_model_path, final_time, number_shooting_points, x0, xT, u
     # State path constraint
     x_bounds = BoundsList()
     x_bounds.add(QAndQDotBounds(biorbd_model))
-    x_bounds[0].min[:, 0] = [0., -0.50, 0, 0, 0, 0, 0, 0]
-    x_bounds[0].max[:, 0] = [0., 0, 0, 0, 0, 0, 0, 0]
+    x_bounds[0][:, 0] = [0., -0.50, 0, 0, 0, 0, 0, 0]
     # x_bounds[0][:, -1] = xT
 
     x_bounds[0].concatenate(
@@ -95,11 +96,13 @@ def prepare_ocp(biorbd_model_path, final_time, number_shooting_points, x0, xT, u
 
 
 if __name__ == "__main__":
-
+    biorbd_model = biorbd.Model("arm_wt_rot_scap.bioMod")
     T = 0.5
     Ns = 150
     x0 = []
     xT = []
+    co_value = []
+
     motion = 'REACH2'  # 'EXT', 'REACH'
     if motion == 'EXT':
         x0 = np.array([-1, 1, 1, 1, 0, 0, 0, 0])
@@ -113,98 +116,122 @@ if __name__ == "__main__":
     if motion == 'REACH2':
         x0 = np.array([0., -0.2, 0, 0, 0, 0, 0, 0])
         xT = np.array([1.2, -1.9, 0, 1.1, 0, 0, 0, 0])
-    use_ACADOS = True  #False#
-    use_IPOPT = False  #True#
-    use_BO = False
+    use_ACADOS = False
+    use_IPOPT = False
+    use_BO = True
+    use_CO = True
 
-    if use_ACADOS:
-        ocp = prepare_ocp(biorbd_model_path="arm_wt_rot_scap.bioMod", final_time=T, number_shooting_points=Ns,
-                          x0=x0, xT=xT, use_SX=True)
+    co_weight = [0, 2, 4, 8, 16] if use_CO is True else [0]
+    co_level = 0
+    for i in co_weight:
+        co_value = None
+        if co_level != 0:
+            with open(
+                    f"solutions/sim_ac_{int(T * 1000)}ms_{Ns}sn_{motion}_co_level_0.bob", 'rb'
+            ) as file:
+                data = pickle.load(file)
+            controls = data['data'][1]
+            u_ref = controls['muscles']
+            co_value = u_ref * i
 
-        sol = ocp.solve(
-            solver=Solver.ACADOS,
-            show_online_optim=False,
-            solver_options={
-                "nlp_solver_max_iter": 75,
-                "nlp_solver_tol_comp": 1e-4,
-                "nlp_solver_tol_eq": 1e-4,
-                "nlp_solver_tol_stat": 1e-4,
-                "integrator_type": "IRK",
-                "nlp_solver_type": "SQP",
-                "sim_method_num_steps": 5,
-            })
-        if os.path.isfile(f"solutions/sim_ac_{int(T*1000)}ms_{Ns}sn_{motion}.bob"):
-            ocp.save_get_data(sol, f"solutions/sim_ac_{int(T*1000)}ms_{Ns}sn_{motion}_1.bob")
-        else:
-            ocp.save_get_data(sol, f"solutions/sim_ac_{int(T*1000)}ms_{Ns}sn_{motion}.bob")
+        if use_ACADOS:
+            ocp = prepare_ocp(biorbd_model=biorbd_model, final_time=T, number_shooting_points=Ns,
+                              x0=x0, xT=xT, co_value=co_value, use_SX=True)
 
-    if use_IPOPT:
-        ocp = prepare_ocp(biorbd_model_path="arm_wt_rot_scap.bioMod", final_time=T, number_shooting_points=Ns,
-                          x0=x0, xT=xT, use_SX=False, nb_threads=8)
+            sol = ocp.solve(
+                solver=Solver.ACADOS,
+                show_online_optim=False,
+                solver_options={
+                    "nlp_solver_max_iter": 150,
+                    "nlp_solver_tol_comp": 1e-4,
+                    "nlp_solver_tol_eq": 1e-4,
+                    "nlp_solver_tol_stat": 1e-4,
+                    "integrator_type": "IRK",
+                    "nlp_solver_type": "SQP",
+                    "sim_method_num_steps": 1,
+                })
+            if os.path.isfile(f"solutions/sim_ac_{int(T*1000)}ms_{Ns}sn_{motion}_co_level_{str(co_level)}.bob"):
+                ocp.save_get_data(
+                    sol, f"solutions/sim_ac_{int(T*1000)}ms_{Ns}sn_{motion}_co_level_{str(co_level)}_1.bob"
+                )
+            else:
+                ocp.save_get_data(
+                    sol, f"solutions/sim_ac_{int(T*1000)}ms_{Ns}sn_{motion}_co_level_{str(co_level)}.bob"
+                )
 
-        sol = ocp.solve(
-            solver=Solver.IPOPT,
-            show_online_optim=False,
-            solver_options={
-                "tol": 1e-4,
-                "dual_inf_tol": 1e-4,
-                "constr_viol_tol": 1e-4,
-                "compl_inf_tol": 1e-4,
-                "linear_solver": "ma57",
-                "max_iter": 500,
-                "hessian_approximation": "exact",
-            },
-        )
-        if os.path.isfile(f"solutions/sim_ip_{int(T*1000)}ms_{Ns}sn_{motion}.bob"):
-            ocp.save_get_data(sol, f"solutions/sim_ip_{int(T*1000)}ms_{Ns}sn_{motion}_1.bob")
-        else:
-            ocp.save_get_data(sol, f"solutions/sim_ip_{int(T*1000)}ms_{Ns}sn_{motion}.bob")
+        if use_IPOPT:
+            ocp = prepare_ocp(biorbd_model, final_time=T, number_shooting_points=Ns,
+                              x0=x0, xT=xT, co_value=co_value, use_SX=False, nb_threads=8)
 
-    if use_BO:
-        with open(f"solutions/sim_ac_{int(T*1000)}ms_{Ns}sn_{motion}.bob", 'rb') as file:
-            data = pickle.load(file)
-        biorbd_model = biorbd.Model("arm_wt_rot_scap.bioMod")
-        states = data['data'][0]
-        controls = data['data'][1]
-        q = states['q']
-        qdot = states['q_dot']
-        a = states['muscles']
-        u = controls['muscles']
-        # tau = controls['tau']
-        t = np.linspace(0, T, Ns + 1)
-        q_name = [biorbd_model.nameDof()[i].to_string() for i in range(biorbd_model.nbQ())]
-        plt.figure("Q")
-        for i in range(q.shape[0]):
-            plt.subplot(2, 3, i + 1)
-            plt.plot(t, q[i, :], c='purple')
-            plt.title(q_name[i])
+            sol = ocp.solve(
+                solver=Solver.IPOPT,
+                show_online_optim=False,
+                solver_options={
+                    "tol": 1e-4,
+                    "dual_inf_tol": 1e-4,
+                    "constr_viol_tol": 1e-4,
+                    "compl_inf_tol": 1e-4,
+                    "linear_solver": "ma57",
+                    "max_iter": 500,
+                    "hessian_approximation": "exact",
+                },
+            )
+            if os.path.isfile(f"solutions/sim_ip_{int(T*1000)}ms_{Ns}sn_{motion}_co_level_{str(co_level)}.bob"):
+                ocp.save_get_data(
+                    sol, f"solutions/sim_ip_{int(T*1000)}ms_{Ns}sn_{motion}_co_level_{str(co_level)}_1.bob"
+                )
+            else:
+                ocp.save_get_data(
+                    sol, f"solutions/sim_ip_{int(T*1000)}ms_{Ns}sn_{motion}_co_level_{str(co_level)}.bob"
+                )
 
-        plt.figure("Q_dot")
-        for i in range(q.shape[0]):
-            plt.subplot(2, 3, i + 1)
-            plt.plot(t, qdot[i, :], c='purple')
-            plt.title(q_name[i])
+        if use_BO:
+            with open(
+                    f"solutions/sim_ac_{int(T*1000)}ms_{Ns}sn_{motion}_co_level_{str(co_level)}.bob", 'rb'
+            ) as file:
+                data = pickle.load(file)
+            states = data['data'][0]
+            controls = data['data'][1]
+            q = states['q']
+            qdot = states['q_dot']
+            a = states['muscles']
+            u = controls['muscles']
+            # tau = controls['tau']
+            t = np.linspace(0, T, Ns + 1)
+            q_name = [biorbd_model.nameDof()[i].to_string() for i in range(biorbd_model.nbQ())]
+            plt.figure("Q")
+            for i in range(q.shape[0]):
+                plt.subplot(2, 3, i + 1)
+                plt.plot(t, q[i, :], c='purple')
+                plt.title(q_name[i])
 
-        # plt.figure("Tau")
-        # for i in range(q.shape[0]):
-        #     plt.subplot(2, 3, i + 1)
-        #     plt.plot(t, tau[i, :], c='orange')
-        #     plt.title(biorbd_model.muscleNames()[i].to_string())
+            plt.figure("Q_dot")
+            for i in range(q.shape[0]):
+                plt.subplot(2, 3, i + 1)
+                plt.plot(t, qdot[i, :], c='purple')
+                plt.title(q_name[i])
 
-        plt.figure("Muscles controls")
-        for i in range(u.shape[0]):
-            plt.subplot(4, 5, i + 1)
-            plt.step(t, u[i, :], c='orange')
-            plt.plot(t, a[i, :], c='purple')
-            plt.title(biorbd_model.muscleNames()[i].to_string())
-        plt.legend(labels=['excitations', "activations"], bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
-        plt.show()
+            # plt.figure("Tau")
+            # for i in range(q.shape[0]):
+            #     plt.subplot(2, 3, i + 1)
+            #     plt.plot(t, tau[i, :], c='orange')
+            #     plt.title(biorbd_model.muscleNames()[i].to_string())
 
-        b = bioviz.Viz(model_path="arm_wt_rot_scap.bioMod")
-        b.load_movement(q)
-        b.exec()
+            plt.figure("Muscles controls")
+            for i in range(u.shape[0]):
+                plt.subplot(4, 5, i + 1)
+                plt.step(t, u[i, :], c='orange')
+                plt.plot(t, a[i, :], c='purple')
+                plt.title(biorbd_model.muscleNames()[i].to_string())
+            plt.legend(labels=['excitations', "activations"], bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+            plt.show()
 
-    # --- Show results --- #
-    result = ShowResult(ocp, sol)
-    result.graphs()
-    result.animate()
+            b = bioviz.Viz(model_path="arm_wt_rot_scap.bioMod")
+            b.load_movement(q)
+            b.exec()
+
+        # --- Show results --- #
+        # result = ShowResult(ocp, sol)
+        # result.graphs()
+        # result.animate()
+        co_level += 1
