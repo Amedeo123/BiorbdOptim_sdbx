@@ -367,6 +367,7 @@ endmusclegroup
 
 	muscle	Pectoral2
 		Type 				hill
+		statetype			degroote
 		musclegroup 		Arm2Thorax
 		OriginPosition		0.014 -0.047 0.009
 		InsertionPosition	0.032 -0.052 0.026
@@ -393,6 +394,7 @@ endmusclegroup
 		
 	muscle	Pectoral3
 		Type 				hill
+		statetype			degroote
 		musclegroup 		Arm2Thorax
 		OriginPosition		0.0138111 -0.047615 0.00816258
 		InsertionPosition	0.066 -0.134 0.043
@@ -419,6 +421,7 @@ endmusclegroup
 		
 	muscle	Latissimus1
 		Type 				hill
+		statetype			degroote
 		musclegroup 		Arm2Thorax
 		OriginPosition		0.0114277 -0.037167 -0.00710689
 		InsertionPosition	-0.112498 -0.137704 0.0103595
@@ -457,6 +460,7 @@ endmusclegroup
 
 	muscle	Latissimus2
 		Type 				hill
+		statetype			degroote
 		musclegroup 		Arm2Thorax
 		OriginPosition		0.011 -0.045 -0.007
 		InsertionPosition	-0.082 -0.216 0.009
@@ -495,6 +499,7 @@ endmusclegroup
 
 	muscle	Latissimus3
 		Type 				hill
+		statetype			degroote
 		musclegroup 		Arm2Thorax
 		OriginPosition		0.0131472 -0.0426849 -0.00452752
 		InsertionPosition	-0.0864854 -0.273044 0.0108791
@@ -546,6 +551,7 @@ endmusclegroup
 		
 	muscle	Deltoid3
 		Type 				hill
+		statetype			degroote
 		musclegroup 		Scapula2Arm
 		OriginPosition		-0.0752687 -0.00105942 -0.0527559
 		InsertionPosition	-0.00422917 -0.0789181 0.00161486
@@ -573,6 +579,7 @@ endmusclegroup
 
 	muscle	TricepsLong
 		Type 				hill
+		statetype			degroote
 		musclegroup 		Scapula2LowerArm1
 		OriginPosition		-0.0443929 -0.0563498 -0.0134528
 		InsertionPosition	-0.0220302 0.0105221 -0.000784636
@@ -607,6 +614,7 @@ endmusclegroup
 
 	muscle	TricepsLat
 		Type 				hill
+		statetype			degroote
 		musclegroup 		Arm2LowerArm1
 		OriginPosition		-0.00651919 -0.137632 0.00465811
 		InsertionPosition	-0.0220302 0.0105221 -0.000784636
@@ -627,6 +635,7 @@ endmusclegroup
 		
 	muscle	TricepsMed
 		Type 				hill
+		statetype			degroote
 		musclegroup 		Arm2LowerArm1
 		OriginPosition		-0.00912031 -0.149048 -0.00986038
 		InsertionPosition	-0.0220302 0.0105221 -0.000784636
@@ -660,6 +669,7 @@ endmusclegroup
 
 	muscle	BRD
 		Type 				hill
+		statetype			degroote
 		musclegroup 		Arm2LowerArm2
 		OriginPosition		0.006 -0.191 0.001
 		InsertionPosition	0.053 -0.254 0.027
@@ -700,6 +710,7 @@ endmusclegroup
 
 	muscle	Pectoral1
 		Type 				hill
+		statetype			degroote
 		musclegroup 		Arm2Clavicle
 		OriginPosition		0.0127226 -0.0456125 0.00848908
 		InsertionPosition	0.0033997 0.00601284 0.0695285
@@ -713,6 +724,7 @@ endmusclegroup
 	
 	muscle	Deltoid1
 		Type 				hill
+		statetype			degroote
 		musclegroup 		Arm2Clavicle
 		OriginPosition		0.00975155 -0.129328 0.00636682
 		InsertionPosition	-0.0192026 0.0196577 0.11166
@@ -739,6 +751,7 @@ endmusclegroup
 
 	muscle	Deltoid2
 		Type 				hill
+		statetype			degroote
 		musclegroup 		Arm2Scapula
 		OriginPosition		-0.005 -0.159 0.005
 		InsertionPosition	-0.01 0.001 -0.001
@@ -767,6 +780,7 @@ endmusclegroup
 		
 	muscle	SupraSpin
 		Type 				hill
+		statetype			degroote
 		musclegroup 		Arm2Scapula
 		OriginPosition		-0.000749943 0.0165142 0.0278686
 		InsertionPosition	-0.0663005 -0.00508869 -0.0871312
@@ -780,6 +794,7 @@ endmusclegroup
 		
 	muscle	InfraSpin
 		Type 				hill
+		statetype			degroote
 		musclegroup 		Arm2Scapula
 		OriginPosition		-0.0116528 -0.00158952 0.027548
 		InsertionPosition	-0.0884006 -0.0650538 -0.055069
@@ -800,6 +815,7 @@ endmusclegroup
 		
 	muscle	SubScap
 		Type 				hill
+		statetype			degroote
 		musclegroup 		Arm2Scapula
 		OriginPosition		0.0183277 0.00736809 -0.0157919
 		InsertionPosition	-0.0830361 -0.0462447 -0.0751362
@@ -826,6 +842,7 @@ endmusclegroup
 
 	muscle	BicepsLong
 		Type 				hill
+		statetype			degroote
 		musclegroup 		Scapula2LowerArm2
 		OriginPosition		-0.0353942 -0.0266676 -0.0147901
 		InsertionPosition	-0.00224779 -0.0421462 -0.00224779
@@ -889,6 +906,7 @@ endmusclegroup
 
 	muscle	BicepsShort
 		Type 				hill
+		statetype			degroote
 		musclegroup 		Scapula2LowerArm2
 		OriginPosition		0.0143708 -0.0445517 -0.0297503
 		InsertionPosition	-0.00224779 -0.0421462 -0.00224779
@@ -934,6 +952,7 @@ endmusclegroup
 
 	muscle	Trapeze1
 		Type 				hill
+		statetype			degroote
 		musclegroup 		Spine2Scapula
 		OriginPosition		-0.075  0.035 0.005
 		InsertionPosition	-0.038  0.001 -0.011
@@ -954,6 +973,7 @@ endmusclegroup
 
 	muscle	Trapeze2
 		Type 				hill
+		statetype			degroote
 		musclegroup 		Spine2Scapula
 		OriginPosition		-0.087 0.011 0.006
 		InsertionPosition	-0.061 0.001 -0.021
