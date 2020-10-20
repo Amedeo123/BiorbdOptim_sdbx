@@ -37,14 +37,31 @@ def prepare_ocp(biorbd_model, final_time, number_shooting_points, x0, xT, co_val
     # Add objective functions
     objective_functions = ObjectiveList()
     # objective_functions.add(Objective.Lagrange.MINIMIZE_TORQUE, weight=0.1)
-    objective_functions.add(Objective.Lagrange.MINIMIZE_STATE, weight=10, states_idx=np.array(range(nbQ)))
+    objective_functions.add(Objective.Lagrange.MINIMIZE_STATE, weight=1, states_idx=np.array(range(nbQ)))
     objective_functions.add(Objective.Lagrange.MINIMIZE_STATE, weight=10, states_idx=np.array(range(nbQ, nbQ*2)))
-    # objective_functions.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=100)
-    objective_functions.add(Objective.Lagrange.TRACK_MUSCLES_CONTROL, weight=10,
-                            target=co_value)
-    # objective_functions.add(Objective.Lagrange.TRACK_MUSCLES_CONTROL, weight=10000, controls_idx=(13, 14))
-    objective_functions.add(Objective.Mayer.TRACK_STATE, weight=1000,
-                            target=np.tile(xT[:nbQ], (number_shooting_points+1, 1)).T, states_idx=np.array(range(nbQ)))
+    objective_functions.add(
+        Objective.Lagrange.MINIMIZE_STATE,
+        weight=10,
+        states_idx=np.array(range(nbQ * 2, nbQ * 2 + biorbd_model.nbMuscles()))
+    )
+    objective_functions.add(
+        Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL,
+        weight=10,
+        # muscles_idx=np.array([0, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16])
+    )
+    objective_functions.add(
+        Objective.Lagrange.TRACK_MUSCLES_CONTROL,
+        weight=100,
+        muscles_idx=np.array([6, 7, 8, 9, 10, 17, 18]),
+        target=co_value
+    )
+
+    objective_functions.add(
+        Objective.Mayer.TRACK_STATE,
+        weight=1000,
+        target=np.tile(xT[:nbQ], (number_shooting_points+1, 1)).T,
+        states_idx=np.array(range(nbQ))
+    )
     # Dynamics
     dynamics = DynamicsTypeList()
     # dynamics.add(DynamicsType.MUSCLE_EXCITATIONS_AND_TORQUE_DRIVEN)
@@ -53,7 +70,7 @@ def prepare_ocp(biorbd_model, final_time, number_shooting_points, x0, xT, co_val
     # State path constraint
     x_bounds = BoundsList()
     x_bounds.add(QAndQDotBounds(biorbd_model))
-    x_bounds[0][:nbQ, 0] = [0., -0.5, 0, 0]
+    # x_bounds[0][:nbQ, 0] = [0., -0.5, 0, 0]
     # x_bounds[0][nbQ:, 0] = [0, 0, 0, 0]
     # x_bounds[0].min[:, -1] = [0, 0.8, -2.3, 0, 0.6, 0, 0, 0]
     # x_bounds[0].max[:, -1] = [0., 1.5, -1.5, 0, 1.5, 0, 0, 0]
@@ -61,8 +78,8 @@ def prepare_ocp(biorbd_model, final_time, number_shooting_points, x0, xT, co_val
     x_bounds[0].concatenate(
         Bounds([activation_min] * biorbd_model.nbMuscles(), [activation_max] * biorbd_model.nbMuscles())
     )
-    x_bounds[0].min[:nbQ, 0] = [-0.4, -0.3, 0.1, -0.3]
-    x_bounds[0].max[:nbQ, 0] = [0, 0, 0.3, 0]
+    x_bounds[0].min[:nbQ, 0] = [-0.1, -0.3, 0.1, -0.3]
+    x_bounds[0].max[:nbQ, 0] = [-0.1, 0, 0.3, 0]
     # Control path constraint
     u_bounds = BoundsList()
     u_bounds.add(
@@ -100,7 +117,7 @@ def prepare_ocp(biorbd_model, final_time, number_shooting_points, x0, xT, co_val
 
 if __name__ == "__main__":
     biorbd_model = biorbd.Model("arm_wt_rot_scap.bioMod")
-    T = 0.7
+    T = 0.5
     Ns = 150
     x0 = []
     xT = []
@@ -118,13 +135,14 @@ if __name__ == "__main__":
         xT = np.array([0.6, -1, 0, 0.5, 0, 0, 0, 0])
     if motion == 'REACH2':
         x0 = np.array([0., -0.2, 0, 0, 0, 0, 0, 0])
-        xT = np.array([-0.2, -1.3, -0.7, 1, 0, 0, 0, 0])
+        xT = np.array([-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0])
+        # xT = np.array([1.2, -1.9, 0, 1.1, 0, 0, 0, 0])
     use_ACADOS = True
     use_IPOPT = False
     use_BO = False
     use_CO = True
 
-    co_weight = [0, 1.5, 2, 4, 5] if use_CO is True else [0]
+    co_weight = [0, 1.5, 2, 2.5, 3] if use_CO is True else [0]
     for i in co_weight:
         co_value = None
         if i != 0:
@@ -134,7 +152,7 @@ if __name__ == "__main__":
                 data = pickle.load(file)
             controls = data['data'][1]
             u_ref = controls['muscles']
-            co_value = u_ref * i
+            co_value = u_ref[:, :-1] * i
 
         if use_ACADOS:
             ocp = prepare_ocp(biorbd_model=biorbd_model, final_time=T, number_shooting_points=Ns,
@@ -144,13 +162,13 @@ if __name__ == "__main__":
                 solver=Solver.ACADOS,
                 show_online_optim=False,
                 solver_options={
-                    "nlp_solver_max_iter": 50,
+                    "nlp_solver_max_iter": 30,
                     "nlp_solver_tol_comp": 1e-4,
                     "nlp_solver_tol_eq": 1e-4,
                     "nlp_solver_tol_stat": 1e-4,
                     "integrator_type": "IRK",
                     "nlp_solver_type": "SQP",
-                    "sim_method_num_steps": 5,
+                    "sim_method_num_steps": 1,
                 })
             if os.path.isfile(f"solutions/sim_ac_{int(T*1000)}ms_{Ns}sn_{motion}_co_weight_{i}.bob"):
                 ocp.save_get_data(
@@ -233,7 +251,7 @@ if __name__ == "__main__":
             b.exec()
 
         # --- Show results --- #
-        result = ShowResult(ocp, sol)
-        result.graphs()
-        result.animate()
+        # result = ShowResult(ocp, sol)
+        # result.graphs()
+        # result.animate()
 
