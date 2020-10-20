@@ -99,7 +99,7 @@ external_forces	0
 			0.000000	1.000000	0.000000	0.007056
 			0.000000	0.000000	1.000000	0.025930
 			0.000000	0.000000	0.000000	1.000000
-		//rotations	    z //yx 
+		//rotations	    z //yx
 		mass	0.0015
 		inertia
 			0.002521	0.000000	0.000000
@@ -366,11 +366,11 @@ endmusclegroup
 		musclegroup 		Arm2Thorax
 		OriginPosition		0.014 -0.047 0.009
 		InsertionPosition	0.032 -0.052 0.026
-		optimalLength		0.132
+		optimalLength		0.138
 		maximalForce		515.41 
-		tendonSlackLength 	0.085
+		tendonSlackLength 	0.089
 		pennationAngle		0.43633
-		PCSA				3.7
+		PCSA			3.7
 		maxVelocity 		10
 	endmuscle
 	
@@ -393,9 +393,9 @@ endmusclegroup
 		musclegroup 		Arm2Thorax
 		OriginPosition		0.0138111 -0.047615 0.00816258
 		InsertionPosition	0.066 -0.134 0.043
-		optimalLength		0.0975
+		optimalLength		0.138
 		maximalForce		390.55
-		tendonSlackLength 	0.122
+		tendonSlackLength 	0.132
 		pennationAngle		0.436
 		PCSA				2.8
 		maxVelocity 		10
@@ -420,11 +420,11 @@ endmusclegroup
 		musclegroup 		Arm2Thorax
 		OriginPosition		0.0114277 -0.037167 -0.00710689
 		InsertionPosition	-0.112498 -0.137704 0.0103595
-		optimalLength		0.246
+		optimalLength		0.254
 		maximalForce		389.1
-		tendonSlackLength 	0.06 //0.06 //0.116
+		tendonSlackLength 	0.12
 		pennationAngle		0.43633
-		PCSA				2.8
+		PCSA			2.8
 		maxVelocity 		10
 	endmuscle
 	
@@ -459,11 +459,11 @@ endmusclegroup
 		musclegroup 		Arm2Thorax
 		OriginPosition		0.011 -0.045 -0.007
 		InsertionPosition	-0.082 -0.216 0.009
-		optimalLength		0.19 //0.233
+		optimalLength		0.232
 		maximalForce		389.1
-		tendonSlackLength 	0.15 //0.144 //0.1771
+		tendonSlackLength 	0.1771
 		pennationAngle		0.3316
-		PCSA				2.8
+		PCSA			2.8
 		maxVelocity 		10
 	endmuscle
 	
@@ -498,11 +498,11 @@ endmusclegroup
 		musclegroup 		Arm2Thorax
 		OriginPosition		0.0131472 -0.0426849 -0.00452752
 		InsertionPosition	-0.0864854 -0.273044 0.0108791
-		optimalLength		0.3 //0.2844
+		optimalLength		0.279
 		maximalForce		281.66
-		tendonSlackLength 	0.078 //0.1431
+		tendonSlackLength 	0.14
 		pennationAngle		0.3665
-		PCSA				2.0
+		PCSA			2.0
 		maxVelocity 		10
 	endmuscle
 	
@@ -535,7 +535,7 @@ endmusclegroup
 			  muscle 		Latissimus3
 			  musclegroup 	Arm2Thorax
 			  position 		-0.129256 -0.231563 0.069728
-		endviapoint	
+		endviapoint
 
 
 // Scapula > Arm 
@@ -554,7 +554,7 @@ endmusclegroup
 		maximalForce		259.9
 		tendonSlackLength 	0.038
 		pennationAngle		0.31415
-		PCSA			6.44
+		PCSA			1.9
 		maxVelocity 		10
 	endmuscle
 
@@ -573,16 +573,16 @@ musclegroup Scapula2LowerArm1
 endmusclegroup 
 
 	muscle	TricepsLong
-		Type 				hill
-		statetype			degroote
+		Type 			hill
+		statetype		degroote
 		musclegroup 		Scapula2LowerArm1
 		OriginPosition		-0.0443929 -0.0563498 -0.0134528
 		InsertionPosition	-0.0220302 0.0105221 -0.000784636
-		optimalLength		0.165 //0.1598
+		optimalLength		0.134
 		maximalForce		798.52
-		tendonSlackLength 	0.1484
+		tendonSlackLength 	0.143
 		pennationAngle		0.2094
-		PCSA				5.7
+		PCSA			5.7
 		maxVelocity 		10
 	endmuscle
 	
@@ -608,16 +608,16 @@ endmusclegroup
 
 
 	muscle	TricepsLat
-		Type 				hill
-		statetype			degroote
+		Type 			hill
+		statetype		degroote
 		musclegroup 		Arm2LowerArm1
 		OriginPosition		-0.00651919 -0.137632 0.00465811
 		InsertionPosition	-0.0220302 0.0105221 -0.000784636
-		optimalLength		0.093 //0.0863
+		optimalLength		0.114
 		maximalForce		624.3
-		tendonSlackLength 	0.1017
+		tendonSlackLength 	0.098
 		pennationAngle		0.1700
-		PCSA				4.5
+		PCSA			4.5
 		maxVelocity 		10
 	endmuscle
 	
@@ -629,16 +629,16 @@ endmusclegroup
 		endviapoint	
 		
 	muscle	TricepsMed
-		Type 				hill
-		statetype			degroote
+		Type 			hill
+		statetype		degroote
 		musclegroup 		Arm2LowerArm1
 		OriginPosition		-0.00912031 -0.149048 -0.00986038
 		InsertionPosition	-0.0220302 0.0105221 -0.000784636
-		optimalLength		0.0861
+		optimalLength		0.114
 		maximalForce		624.3
-		tendonSlackLength 	0.0941
+		tendonSlackLength 	0.091
 		pennationAngle		0.1570
-		PCSA				4.5
+		PCSA			4.5
 		maxVelocity 		10
 	endmuscle
 	
@@ -653,7 +653,21 @@ endmusclegroup
 			  muscle 		TricepsMed
 			  musclegroup 	Arm2LowerArm1
 			  position 		-0.0189698 -0.291207 -0.0131472
-		endviapoint	
+		endviapoint
+
+		muscle    BRA
+            Type    hillthelen
+            statetype    degroote
+            musclegroup   Arm2LowerArm1
+            OriginPosition     0.0068 -0.1739 -0.0036
+            InsertionPosition     -0.0032 -0.0239 0.0009
+            optimalLength    0.0858
+            maximalForce    987.26
+            tendonSlackLength    0.0535
+            pennationAngle    0
+            PCSA			7.1
+            maxVelocity    10
+    endmuscle
 	
 
 //Arm > LowerArm2
@@ -663,8 +677,8 @@ musclegroup Arm2LowerArm2
 endmusclegroup 
 
 	muscle	BRD
-		Type 				hill
-		statetype			degroote
+		Type 			hill
+		statetype		degroote
 		musclegroup 		Arm2LowerArm2
 		OriginPosition		0.006 -0.191 0.001
 		InsertionPosition	0.053 -0.254 0.027
@@ -672,7 +686,7 @@ endmusclegroup
 		maximalForce		261.3
 		tendonSlackLength 	0.133
 		pennationAngle		0
-		PCSA				1.9
+		PCSA			1.9
 		maxVelocity 		10
 	endmuscle
 
@@ -709,11 +723,11 @@ endmusclegroup
 		musclegroup 		Arm2Clavicle
 		OriginPosition		0.0127226 -0.0456125 0.00848908
 		InsertionPosition	0.0033997 0.00601284 0.0695285
-		optimalLength		0.1363
+		optimalLength		0.144
 		maximalForce		364.41
-		tendonSlackLength 	0.00264
+		tendonSlackLength 	0.003
 		pennationAngle		0.29670
-		PCSA				2.6
+		PCSA			2.6
 		maxVelocity 		10
 	endmuscle
 	
@@ -721,21 +735,21 @@ endmusclegroup
 		Type 				hill
 		statetype			degroote
 		musclegroup 		Arm2Clavicle
-		OriginPosition		0.00975155 -0.129328 0.00636682
-		InsertionPosition	-0.0192026 0.0196577 0.11166
+		OriginPosition		0.00455911 -0.103949 0.00775516
+		InsertionPosition	-0.0241685 0.0192842 0.099015
 		optimalLength		0.098
 		maximalForce		1142.6
 		tendonSlackLength 	0.093
 		pennationAngle		0.38397
-		PCSA			8.2
+		PCSA			    8.2
 		maxVelocity 		10
 	endmuscle
 
 		viapoint via1
-			  parent 		Arm
+			  parent 		Clavicle
 			  muscle 		Deltoid1
 			  musclegroup 	Arm2Clavicle
-			  position 		0.0294097 -0.0168886 0.020477
+			  position 		-0.00230674 0.0315051 0.130618
 		endviapoint
 
 // Arm > Scapula
@@ -783,7 +797,7 @@ endmusclegroup
 		maximalForce		487.7
 		tendonSlackLength 	0.04
 		pennationAngle		0.12217
-		PCSA				4.75
+		PCSA			3.5
 		maxVelocity 		10
 	endmuscle
 	/*viapoint via1
@@ -821,16 +835,16 @@ endmusclegroup
 		endviapoint
 		
 	muscle	SubScap
-		Type 				hill
-		statetype			degroote
+		Type 			hill
+		statetype		degroote
 		musclegroup 		Arm2Scapula
 		OriginPosition		0.0199995 -0.00831173 -0.00174873
 		InsertionPosition	-0.072 -0.039 -0.065
-		optimalLength		0.1632
+		optimalLength		0.087
 		maximalForce		1377.8
-		tendonSlackLength 	0.0075
+		tendonSlackLength 	0.033
 		pennationAngle		0.34906
-		PCSA				10.92
+		PCSA			9.8
 		maxVelocity 		10
 	endmuscle
 
@@ -860,11 +874,11 @@ endmusclegroup
 		musclegroup 		Scapula2LowerArm2
 		OriginPosition		-0.0353942 -0.0266676 -0.0147901
 		InsertionPosition	-0.00224779 -0.0421462 -0.00224779
-		optimalLength		0.165
+		optimalLength		0.1165
 		maximalForce		624.3
-		tendonSlackLength 	0.27563
+		tendonSlackLength 	0.272
 		pennationAngle		0
-		PCSA				4.5
+		PCSA			4.5
 		maxVelocity 		10
 	endmuscle
 
@@ -924,11 +938,11 @@ endmusclegroup
 		musclegroup 		Scapula2LowerArm2
 		OriginPosition		0.0143708 -0.0445517 -0.0297503
 		InsertionPosition	-0.00224779 -0.0421462 -0.00224779
-		optimalLength		0.18 //0.13394
-		maximalForce		435.56
-		tendonSlackLength 	0.19497
+		optimalLength		0.132
+		maximalForce		435.6
+		tendonSlackLength 	0.192
 		pennationAngle		0
-		PCSA				3.1
+		PCSA			3.1
 		maxVelocity 		10
 	endmuscle
 
@@ -956,90 +970,6 @@ endmusclegroup
 			  musclegroup 	Scapula2LowerArm2
 			  position 		0.0184577 -0.292248 -0.00615258
 		endviapoint
-		
-/*// Spine > Scapula
-musclegroup Spine2Scapula
-	OriginParent		Spine
-	InsertionParent		Scapula
-endmusclegroup 	
 
-	muscle	Trapeze1
-		Type 			hillthelen
-		statetype		degroote
-		musclegroup 		Spine2Scapula
-		OriginPosition		-0.075  0.035 0.005
-		InsertionPosition	-0.038  0.001 -0.011
-		optimalLength		0.173
-		maximalForce		118
-		tendonSlackLength 	0.003
-		pennationAngle		0
-		PCSA				1.8
-		maxVelocity 		10
-	endmuscle
-
-		viapoint via1
-			  parent 		Thorax
-			  muscle 		Trapeze1
-			  musclegroup 	Spine2Scapula
-			  position 		-0.109 0.028 0.033
-		endviapoint
-	muscle	Trapeze2
-		Type 				hillthelen
-		statetype			buchanan
-		musclegroup 		Spine2Scapula
-		OriginPosition		-0.087 0.011 0.006
-		InsertionPosition	-0.061 0.001 -0.021
-		optimalLength		0.126
-		maximalForce		160
-		tendonSlackLength 	0.0243
-		pennationAngle		0.000
-		PCSA				1.8
-		maxVelocity 		10
-	endmuscle
-
-		viapoint via1
-			  parent 		Thorax
-			  muscle 		Trapeze2
-			  musclegroup 	Spine2Scapula
-			  position 		-0.129 0.01 0.07
-		endviapoint
-
-// Clavicle > Spine
-musclegroup Clavicle2Spine
-	OriginParent		Clavicle
-	InsertionParent		Spine
-endmusclegroup 	
-
-/// 17
-
-	muscle	Trapeze3
-		Type 			hillthelen
-		statetype		degroote
-		musclegroup 		Clavicle2Spine
-		OriginPosition		-0.027 0.027 0.111
-		InsertionPosition	-0.044 0.121 0.019
-		optimalLength		0.114
-		maximalForce		155
-		tendonSlackLength 	0.0446
-		pennationAngle		0.000
-		PCSA				1.8
-		maxVelocity 		10
-	endmuscle
-
-/// 18
-
-	muscle	Trapeze4
-		Type 			hillthelen
-		statetype		degroote
-		musclegroup 		Clavicle2Spine
-		OriginPosition		-0.055 0.079 0.005
-		InsertionPosition	-0.022 0.025 0.127
-		optimalLength		0.1468
-		maximalForce		557
-		tendonSlackLength 	0.0390
-		pennationAngle		0.000
-		PCSA				1.8
-		maxVelocity 		10
-	endmuscle*/
 	
 	
