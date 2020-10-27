@@ -21,7 +21,7 @@ from bioptim import (
     Bounds,
 )
 
-def compute_err(Ns_mhe, X_est ,U_est, Ns, model, q, dq, a, tau, excitations, nbGT):
+def compute_err(Ns_mhe, X_est ,U_est, Ns, model, q, dq, tau, excitations, nbGT):
     model = model
     get_markers = markers_fun(model)
     err = dict()
@@ -30,14 +30,12 @@ def compute_err(Ns_mhe, X_est ,U_est, Ns, model, q, dq, a, tau, excitations, nbG
     norm_err = np.sqrt(Ns-Ns_mhe)
     q_ref = q[:, :-Ns_mhe]
     dq_ref = dq[:, :-Ns_mhe]
-    a_ref = a[:, :-Ns_mhe]
     tau_ref = tau[:, :-Ns_mhe-1]
     musces_ref = excitations[:, :-Ns_mhe-1]
     sol_mark = np.zeros((3, model.nbMarkers(), Ns+1-Ns_mhe))
     sol_mark_ref = np.zeros((3, model.nbMarkers(), Ns+1-Ns_mhe))
     err['q'] = np.linalg.norm(X_est[:model.nbQ(), :]-q_ref)/norm_err
     err['q_dot'] = np.linalg.norm(X_est[model.nbQ():model.nbQ()*2, :]-dq_ref)/norm_err
-    err['a'] = np.linalg.norm(X_est[model.nbQ()*2:, :] - a_ref) / norm_err
     err['tau'] = np.linalg.norm(U_est[:nbGT, :]-tau_ref)/norm_err
     err['muscles'] = np.linalg.norm(U_est[nbGT:, :]-musces_ref)/norm_err
     for i in range(Ns+1-Ns_mhe):
@@ -129,8 +127,8 @@ def prepare_ocp(
 
 
 if __name__ == "__main__":
-    use_activation = False
-    use_torque = False
+    use_activation = True
+    use_torque = True
     use_ACADOS = True
     T = 0.5
     Ns = 150
@@ -138,7 +136,7 @@ if __name__ == "__main__":
     i = '0'
     biorbd_model = biorbd.Model("arm_wt_rot_scap.bioMod")
     with open(
-            f"solutions/sim_ac_{int(T * 1000)}ms_{Ns}sn_{motion}_co_level_{i}_1.bob", 'rb'
+            f"solutions/sim_ac_{int(T * 1000)}ms_{Ns}sn_{motion}_co_level_{i}_ref.bob", 'rb'
     ) as file:
         data = pickle.load(file)
     states = data['data'][0]
@@ -187,8 +185,8 @@ if __name__ == "__main__":
     ocp.update_initial_guess(x_init, u_init)
 
     objectives = ObjectiveList()
-    objectives.add(Objective.Lagrange.TRACK_MUSCLES_CONTROL, weight=10000, target=muscles_target)
-    objectives.add(Objective.Lagrange.TRACK_MARKERS, weight=100000, target=markers_target)
+    objectives.add(Objective.Lagrange.TRACK_MUSCLES_CONTROL, weight=1000, target=muscles_target)
+    objectives.add(Objective.Lagrange.TRACK_MARKERS, weight=1000000, target=markers_target)
     objectives.add(Objective.Lagrange.MINIMIZE_STATE, weight=10, states_idx=np.array(range(nbQ)))
     objectives.add(Objective.Lagrange.MINIMIZE_STATE, weight=10, states_idx=np.array(range(nbQ, nbQ * 2)))
     if use_activation is not True:
@@ -240,15 +238,16 @@ if __name__ == "__main__":
         U_est = np.vstack([data_sol[1]['tau'], data_sol[1]['muscles']])
     else:
         U_est = data_sol[1]['muscles']
-    err_offset = 15
+    err_offset = 30
     err = compute_err(
         err_offset,
-        X_est[:, :-err_offset], U_est[:, :-err_offset-1], Ns, biorbd_model, q_sol, dq_sol, a_sol, tau, u_sol, nbGT
+        X_est[:, :-err_offset], U_est[:, :-err_offset-1], Ns, biorbd_model, q_sol, dq_sol, tau, u_sol, nbGT
     )
     if use_torque is not True:
         err['tau'] = None
+    use_noise=False
     print(err)
-    f = open(f"solutions/stats_flex_activ{use_activation}_torque{use_torque}_acados{use_ACADOS}.txt", "a")
+    f = open(f"solutions/stats_ac_torque{use_torque}_w_noise{use_noise}.txt", "a")
     f.write(f"{Ns}; {toc}; {err['q']}; {err['q_dot']}; {err['tau']}; "
             f"{err['muscles']}; {err['markers']}\n")
     f.close()
@@ -283,8 +282,15 @@ if __name__ == "__main__":
     )
     plt.tight_layout()
     plt.show()
-
+    if use_activation:
+        ocp.save_get_data(
+            sol, f"solutions/tracking_excitations_activations_driven_torque{use_torque}.bob"
+        )
+    else:
+        ocp.save_get_data(
+            sol, f"solutions/tracking_excitations_excitations_driven_torque{use_torque}.bob"
+        )
     # --- Show results --- #
-    result = ShowResult(ocp, sol)
-    result.graphs()
-    result.animate()
+    # result = ShowResult(ocp, sol)
+    # result.graphs()
+    # result.animate()
