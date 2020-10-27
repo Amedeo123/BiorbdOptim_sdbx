@@ -140,7 +140,7 @@ def prepare_ocp(
 if __name__ == "__main__":
     use_torque = False
     use_ACADOS = True
-    WRITE_STATS = False
+    WRITE_STATS = True
     TRACK_EMG = True
     stats_file = 'stats_1_th'
     use_noise = True
@@ -150,7 +150,7 @@ if __name__ == "__main__":
     i = '0'
     biorbd_model = biorbd.Model("arm_wt_rot_scap.bioMod")
     with open(
-            f"solutions/sim_ac_{int(T * 1000)}ms_{Ns}sn_{motion}_co_level_{i}_ref.bob", 'rb'
+            f"solutions/sim_ac_{int(T * 1000)}ms_{Ns}sn_{motion}_co_level_{i}.bob", 'rb'
     ) as file:
         data = pickle.load(file)
     states = data['data'][0]
@@ -183,11 +183,13 @@ if __name__ == "__main__":
     muscles_target = u_sol
 
     if use_noise:
-        markers_target, muscles_target = generate_noise(biorbd_model, markers_target, muscles_target)
+        marker_noise_lvl, EMG_noise_lvl = 0.015, 0.4
+        markers_target, muscles_target = generate_noise(biorbd_model, q_sol, u_sol, marker_noise_lvl, EMG_noise_lvl)
 
-
-    # setup MHE
-    Ns_mhe = 25
+    # Ns_mhe_list = [5, 10, 15, 20, 25]
+    # # setup MHE
+    # for i in Ns_mhe_list:
+    Ns_mhe = 14
     T_mhe = T / Ns * Ns_mhe
     X_est = np.zeros((biorbd_model.nbQ() * 2, Ns + 1 - Ns_mhe))
     U_est = np.zeros((nbGT + biorbd_model.nbMuscleTotal(), Ns - Ns_mhe))
@@ -203,21 +205,24 @@ if __name__ == "__main__":
     u0 = np.array([tau_init] * nbGT + [muscle_init] * nbMT)
     u_init = InitialGuessOption(u0, interpolation=InterpolationType.CONSTANT)
     ocp.update_initial_guess(x_init, u_init)
-
+    w_control = 1000
+    w_torque = 10
+    w_marker = 10000000
+    w_state = 10
     objectives = ObjectiveList()
     if TRACK_EMG:
-        objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=1000000,
+        objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=w_control,
                        target=muscles_target[:, :Ns_mhe],
                        )
         if use_torque:
-            objectives.add(Objective.Lagrange.MINIMIZE_TORQUE, weight=10)
+            objectives.add(Objective.Lagrange.MINIMIZE_TORQUE, weight=w_torque)
     else:
-        objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=1000000)
+        objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=w_control)
         if use_torque:
             objectives.add(Objective.Lagrange.MINIMIZE_TORQUE, weight=500)
-    objectives.add(Objective.Lagrange.MINIMIZE_MARKERS, weight=100000,
+    objectives.add(Objective.Lagrange.MINIMIZE_MARKERS, weight=w_marker,
                    target=markers_target[:, :, :Ns_mhe+1])
-    objectives.add(Objective.Lagrange.MINIMIZE_STATE, weight=10)
+    objectives.add(Objective.Lagrange.MINIMIZE_STATE, weight=w_state)
     ocp.update_objectives(objectives)
 
     sol = ocp.solve(solver=Solver.ACADOS,
@@ -252,20 +257,20 @@ if __name__ == "__main__":
 
         objectives = ObjectiveList()
         if TRACK_EMG:
-            objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=100000,
+            objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=w_control,
                            target=muscles_target[:, i:Ns_mhe+i],
                            )
             if use_torque:
-                objectives.add(Objective.Lagrange.MINIMIZE_TORQUE, weight=10)
+                objectives.add(Objective.Lagrange.MINIMIZE_TORQUE, weight=w_torque)
         else:
             objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=10000,
                            )
             if use_torque:
                 objectives.add(Objective.Lagrange.MINIMIZE_TORQUE, weight=500)
 
-        objectives.add(Objective.Lagrange.MINIMIZE_MARKERS, weight=10000000,
+        objectives.add(Objective.Lagrange.MINIMIZE_MARKERS, weight=w_marker,
                        target=markers_target[:, :, i:Ns_mhe+i+1])
-        objectives.add(Objective.Lagrange.MINIMIZE_STATE, weight=10)
+        objectives.add(Objective.Lagrange.MINIMIZE_STATE, weight=w_state)
         ocp.update_objectives(objectives)
 
         sol = ocp.solve(solver=Solver.ACADOS,
@@ -297,10 +302,8 @@ if __name__ == "__main__":
         X_est[:, :-err_offset+Ns_mhe], U_est[:, :-err_offset+Ns_mhe], Ns, biorbd_model, q_sol, dq_sol, tau, u_sol, nbGT
     )
 
-    if use_torque is not True:
-        err['tau'] = None
     if WRITE_STATS:
-        f = open(f"solutions/stats_ACADOS{use_ACADOS}_torque{use_torque}.txt", "a")
+        f = open(f"solutions/stats_ac_torque{use_torque}_noise{use_noise}.txt", "a")
         f.write(f"{Ns_mhe}; {toc/(Ns-Ns_mhe)}; {err['q']}; {err['q_dot']}; {err['tau']}; "
                 f"{err['muscles']}; {err['markers']}\n")
         f.close()
@@ -323,8 +326,9 @@ if __name__ == "__main__":
     plt.legend()
     plt.tight_layout()
 
-    plt.figure()
+
     if use_torque:
+        plt.figure()
         plt.subplot(211)
         for est, name in zip(U_est[:nbGT, :], biorbd_model.nameDof()):
             plt.plot(est, 'x', label=name.to_string()+'_tau_est')
@@ -334,12 +338,26 @@ if __name__ == "__main__":
         plt.legend()
         plt.subplot(212)
 
-    for est, name in zip(U_est[nbGT:, :], biorbd_model.muscleNames()):
-        plt.plot(est, 'x', label=name.to_string()+'_est')
-    plt.gca().set_prop_cycle(None)
-    for tru, name in zip(u_sol, biorbd_model.muscleNames()):
-        plt.plot(tru, label=name.to_string()+'_tru')
-    plt.legend(fontsize=5)
+    plt.figure('Muscles excitations')
+    for i in range(biorbd_model.nbMuscles()):
+        plt.subplot(4, 5, i + 1)
+        plt.plot(U_est[nbGT+i, :])
+        plt.plot(u_sol[i, :], c='red')
+        plt.plot(muscles_target[i, :], 'k--')
+        plt.title(biorbd_model.muscleNames()[i].to_string())
+    plt.legend(labels=['u_est', 'u_init', 'u_with_noise'], bbox_to_anchor=(1.05, 1), loc='upper left',
+               borderaxespad=0.)
     plt.tight_layout()
     plt.show()
     print()
+
+    # for est, name in zip(U_est[nbGT:, :], biorbd_model.muscleNames()):
+    #     plt.plot(est, 'x', label=name.to_string()+'_est')
+    # plt.gca().set_prop_cycle(None)
+    # for tru, name in zip(u_sol, biorbd_model.muscleNames()):
+    #     plt.plot(tru, label=name.to_string()+'_tru')
+    # for noise, name in zip(muscles_target, biorbd_model.muscleNames()):
+    #     plt.plot(noise, label=name.to_string() + '_noise', )
+    # plt.legend(fontsize=5)
+    # plt.tight_layout()
+
