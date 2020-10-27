@@ -210,16 +210,16 @@ external_forces	0
 		position	-0.0135567 -0.114158 0.0281827 
 		technical 1
 	endmarker
-	/*marker	ARMl
+	marker	ARMl
 		parent	Arm
 		position	-0.0130371 -0.174206 0.0184148 
 		technical 1
-	endmarker*/
-	marker	ARMm
+	endmarker
+	/*marker	ARMm
 		parent	Arm
 		position	0.00614184 -0.101773 -0.024878 
 		technical 1
-	endmarker
+	endmarker*/
 	/*marker	ARMp_up
 		parent	Arm
 		position	-0.0275422 -0.150226 -0.00908345 
@@ -244,7 +244,8 @@ external_forces	0
 		parent	Arm
 		RTinMatrix	0
 		RT 0.5 0 0 zyx 0.0066386 -0.3160549 -0.0133869 
-		rotations	    z //yx
+		rotations	    z
+		ranges -2*pi 2*pi
 		mass 0.98205
 		inertia
 			0.008360	0.000000	0.000000
@@ -259,7 +260,7 @@ external_forces	0
 		parent	LowerArm1
 		position	0.0180443 -0.0560943 0.0197766 
 		technical 1
-	endmarker
+	endmarker*/
 	marker	LARMl
 		parent	LowerArm1
 		position	-0.0307895 -0.0769609 0.0130237 
@@ -270,7 +271,7 @@ external_forces	0
 		position	-0.0417853 0.00171698 -0.00175961 
 		technical 1
 	endmarker
-	marker	LARM_ant
+	/*marker	LARM_ant
 		parent	LowerArm1
 		position	0.0019484 -0.119207 0.0453081 
 		technical 1
@@ -300,20 +301,20 @@ external_forces	0
 		parent	LowerArm2
 		position	0.0601224 -0.243211 0.0307071
 	endmarker
-	marker	STYLr_up
+	/*marker	STYLr_up
 		parent	LowerArm2
 		position	-0.00585193 -0.181298 0.0475308 
 		technical 1
-	endmarker	
+	endmarker	*/
 	marker	STYLu
 		parent	LowerArm1
 		position	-0.0147894 -0.251196 0.033142
 	endmarker
-	marker	WRIST
+	/*marker	WRIST
 		parent	LowerArm2
 		position	0.0346357 -0.173234 0.0296425 
 		technical 1
-	endmarker
+	endmarker*/
 
 // HAND 
 	 segment hand
