@@ -20,6 +20,8 @@ from bioptim import (
     InterpolationType,
     Bounds,
 )
+import os
+import scipy.io as sio
 
 def compute_err(Ns_mhe, X_est ,U_est, Ns, model, q, dq, tau, excitations, nbGT):
     model = model
@@ -127,16 +129,16 @@ def prepare_ocp(
 
 
 if __name__ == "__main__":
-    use_activation = True
-    use_torque = True
+    use_activation = False
+    use_torque = False
     use_ACADOS = True
-    T = 0.5
-    Ns = 150
+    T = 0.8
+    Ns = 100
     motion = 'REACH2'
     i = '0'
     biorbd_model = biorbd.Model("arm_wt_rot_scap.bioMod")
     with open(
-            f"solutions/sim_ac_{int(T * 1000)}ms_{Ns}sn_{motion}_co_level_{i}_ref.bob", 'rb'
+            f"solutions/sim_ac_{int(T * 1000)}ms_{Ns}sn_{motion}_co_level_{i}.bob", 'rb'
     ) as file:
         data = pickle.load(file)
     states = data['data'][0]
@@ -185,13 +187,13 @@ if __name__ == "__main__":
     ocp.update_initial_guess(x_init, u_init)
 
     objectives = ObjectiveList()
-    objectives.add(Objective.Lagrange.TRACK_MUSCLES_CONTROL, weight=1000, target=muscles_target)
-    objectives.add(Objective.Lagrange.TRACK_MARKERS, weight=1000000, target=markers_target)
+    objectives.add(Objective.Lagrange.TRACK_MUSCLES_CONTROL, weight=100000, target=muscles_target)
+    objectives.add(Objective.Lagrange.TRACK_MARKERS, weight=10000000, target=markers_target)
     objectives.add(Objective.Lagrange.MINIMIZE_STATE, weight=10, states_idx=np.array(range(nbQ)))
     objectives.add(Objective.Lagrange.MINIMIZE_STATE, weight=10, states_idx=np.array(range(nbQ, nbQ * 2)))
     if use_activation is not True:
         objectives.add(
-            Objective.Lagrange.MINIMIZE_STATE, weight=10, states_idx=np.array(range(nbQ * 2, nbQ * 2 + nbMT))
+            Objective.Lagrange.MINIMIZE_STATE, weight=1, states_idx=np.array(range(nbQ * 2, nbQ * 2 + nbMT))
         )
     if use_torque:
         objectives.add(Objective.Lagrange.MINIMIZE_TORQUE, weight=10)
@@ -243,53 +245,55 @@ if __name__ == "__main__":
         err_offset,
         X_est[:, :-err_offset], U_est[:, :-err_offset-1], Ns, biorbd_model, q_sol, dq_sol, tau, u_sol, nbGT
     )
-    if use_torque is not True:
-        err['tau'] = None
-    use_noise=False
+
+    use_noise = False
     print(err)
-    f = open(f"solutions/stats_ac_torque{use_torque}_w_noise{use_noise}.txt", "a")
-    f.write(f"{Ns}; {toc}; {err['q']}; {err['q_dot']}; {err['tau']}; "
-            f"{err['muscles']}; {err['markers']}\n")
-    f.close()
+    err_tmp = np.array([[Ns, toc, err['q'], err['q_dot'], err['tau'], err['muscles'], err['markers']]])
+    if os.path.isfile(f"solutions/stats_ac_noise{use_noise}.mat"):
+        matcontent = sio.loadmat(
+            f"solutions/stats_ac_noise{use_noise}.mat")
+        err_mat = np.concatenate((matcontent['err_tries'], err_tmp))
+        err_dic = {"err_tries": err_mat}
+        sio.savemat(f"solutions/stats_ac_noise{use_noise}.mat", err_dic)
 
-    plt.subplot(211)
-    plt.plot(X_est[:biorbd_model.nbQ(), :].T, 'x')
-    plt.gca().set_prop_cycle(None)
-    plt.plot(q_sol.T)
-    plt.legend(labels=['Q estimate', 'Q truth'], bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=0.)
-    plt.subplot(212)
-    plt.plot(X_est[biorbd_model.nbQ():, :].T, 'x')
-    plt.gca().set_prop_cycle(None)
-    plt.plot(dq_sol.T)
-    plt.legend(labels=['Qdot estimate', 'Qdot truth'], bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=0.)
+    # plt.subplot(211)
+    # plt.plot(X_est[:biorbd_model.nbQ(), :].T, 'x')
+    # plt.gca().set_prop_cycle(None)
+    # plt.plot(q_sol.T)
+    # plt.legend(labels=['Q estimate', 'Q truth'], bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=0.)
+    # plt.subplot(212)
+    # plt.plot(X_est[biorbd_model.nbQ():, :].T, 'x')
+    # plt.gca().set_prop_cycle(None)
+    # plt.plot(dq_sol.T)
+    # plt.legend(labels=['Qdot estimate', 'Qdot truth'], bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=0.)
+    # # plt.tight_layout()
+    #
+    # plt.figure()
+    # if use_torque:
+    #     plt.subplot(211)
+    #     plt.plot(U_est[:nbGT, :].T, 'x', label='Tau estimate')
+    #     plt.gca().set_prop_cycle(None)
+    #     plt.plot(tau.T)
+    #     plt.legend(labels=['Tau estimate', 'Tau truth'], bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=0.)
+    #     plt.subplot(212)
+    # plt.plot(U_est[nbGT:, :].T, 'x')
+    # plt.gca().set_prop_cycle(None)
+    # plt.plot(u_sol.T)
+    # plt.legend(
+    #     labels=['Muscle excitation estimate', 'Muscle excitation truth'],
+    #     bbox_to_anchor=(1, 1),
+    #     loc='upper left', borderaxespad=0.
+    # )
     # plt.tight_layout()
-
-    plt.figure()
-    if use_torque:
-        plt.subplot(211)
-        plt.plot(U_est[:nbGT, :].T, 'x', label='Tau estimate')
-        plt.gca().set_prop_cycle(None)
-        plt.plot(tau.T)
-        plt.legend(labels=['Tau estimate', 'Tau truth'], bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=0.)
-        plt.subplot(212)
-    plt.plot(U_est[nbGT:, :].T, 'x')
-    plt.gca().set_prop_cycle(None)
-    plt.plot(u_sol.T)
-    plt.legend(
-        labels=['Muscle excitation estimate', 'Muscle excitation truth'],
-        bbox_to_anchor=(1, 1),
-        loc='upper left', borderaxespad=0.
-    )
-    plt.tight_layout()
-    plt.show()
-    if use_activation:
-        ocp.save_get_data(
-            sol, f"solutions/tracking_excitations_activations_driven_torque{use_torque}.bob"
-        )
-    else:
-        ocp.save_get_data(
-            sol, f"solutions/tracking_excitations_excitations_driven_torque{use_torque}.bob"
-        )
+    # plt.show()
+    # if use_activation:
+    #     ocp.save_get_data(
+    #         sol, f"solutions/tracking_markers_EMG_activations_driven.bob"
+    #     )
+    # else:
+    #     ocp.save_get_data(
+    #         sol, f"solutions/tracking_markers_EMG_excitations_driven.bob"
+    #     )
     # --- Show results --- #
     # result = ShowResult(ocp, sol)
     # result.graphs()
