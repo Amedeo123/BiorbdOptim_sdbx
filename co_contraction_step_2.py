@@ -107,8 +107,8 @@ def prepare_ocp(
         nb_threads=nb_threads,
     )
 
-T = 0.5
-Ns = 150
+T = 0.8
+Ns = 100
 
 biorbd_model = biorbd.Model("arm_wt_rot_scap.bioMod")
 x0 = np.array([0., -0.2, 0, 0, 0, 0, 0, 0])
