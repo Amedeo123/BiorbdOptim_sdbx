@@ -115,8 +115,8 @@ def prepare_ocp(
 
 if __name__ == "__main__":
     biorbd_model = biorbd.Model("arm_wt_rot_scap.bioMod")
-    T = 0.5
-    Ns = 150
+    T = 0.8
+    Ns = 100
     co_value = []
     motion = 'REACH2'
     x0 = np.array([0., -0.2, 0, 0, 0, 0, 0, 0])
@@ -126,12 +126,13 @@ if __name__ == "__main__":
     use_IPOPT = False
     use_BO = False
     use_CO = True
-    # use_noise = True
+    save_data = True
 
+    excitations_max = [1] * biorbd_model.nbMuscleTotal()
     if use_CO is not True:
         excitations_init = [[0.05] * biorbd_model.nbMuscleTotal()]
         excitations_min = [[0] * biorbd_model.nbMuscleTotal()]
-        excitations_max = [[1] * biorbd_model.nbMuscleTotal()]
+
     else:
         excitations_init = [
             [0.05] * biorbd_model.nbMuscleTotal(),
@@ -145,7 +146,7 @@ if __name__ == "__main__":
             [0] * 6 + [0.3] * 3 + [0] * 10,
             [0] * 6 + [0.4] * 3 + [0] * 10
         ]
-        excitations_max = [1] * biorbd_model.nbMuscleTotal()
+
     ocp = prepare_ocp(biorbd_model=biorbd_model, final_time=T, number_shooting_points=Ns, x0=x0, xT=xT, use_SX=True)
 
     for i in range(0, len(excitations_init)):
@@ -154,7 +155,7 @@ if __name__ == "__main__":
         u_ma = excitations_max
 
         # Update u_init and u_bounds
-        u_init = InitialGuessOption(u_i, interpolation=InterpolationType.CONSTANT)
+        u_init = InitialGuessOption(np.tile(u_i, (ocp.nlp[0].ns, 1)).T, interpolation=InterpolationType.EACH_FRAME)
         x_init = InitialGuessOption(np.tile(np.concatenate(
             (x0, [0.1] * biorbd_model.nbMuscles())), (ocp.nlp[0].ns + 1, 1)).T, interpolation=InterpolationType.EACH_FRAME)
         ocp.update_initial_guess(x_init, u_init=u_init)
@@ -167,7 +168,7 @@ if __name__ == "__main__":
                 solver=Solver.ACADOS,
                 show_online_optim=False,
                 solver_options={
-                    "nlp_solver_max_iter": 30,
+                    "nlp_solver_max_iter": 100,
                     "nlp_solver_tol_comp": 1e-4,
                     "nlp_solver_tol_eq": 1e-4,
                     "nlp_solver_tol_stat": 1e-4,
@@ -247,19 +248,14 @@ if __name__ == "__main__":
                 #     plt.step(t, u_co[i, :])
                 #     plt.step(t, e_exc[i, :], c='red')
                 # plt.show()
-
-            ocp.save_get_data(
-                sol, f"solutions/sim_ac_{int(T * 1000)}ms_{Ns}sn_{motion}_co_level_{i}_tmp.bob"
-            )
-            states, controls = Data.get_data(ocp, sol)
-            u_co = controls['muscles']
-            q_sol = states['q']
-            get_markers = markers_fun(biorbd_model)
-            markers_target = np.zeros((3, biorbd_model.nbMarkers(), Ns + 1))
-            for i in range(Ns + 1):
-                markers_target[:, :, i] = get_markers(q_sol[:, i])
-            # if use_noise:
-            #     marker_with_noise, EMG_with_noise = generate_noise(biorbd_model, q_sol, u_co)
+            if i == 0:
+                ocp.save_get_data(
+                    sol, f"solutions/sim_ac_{int(T * 1000)}ms_{Ns}sn_{motion}_co_level_{i}.bob"
+                )
+            if save_data:
+                ocp.save_get_data(
+                    sol, f"solutions/sim_ac_{int(T * 1000)}ms_{Ns}sn_{motion}_co_level_{i}_tmp.bob"
+                )
 
         # if os.path.isfile(f"solutions/sim_ac_{int(T*1000)}ms_{Ns}sn_{motion}_co_level_{i}.bob"):
             #     ocp.save_get_data(
@@ -391,9 +387,9 @@ if __name__ == "__main__":
             b.exec()
 
         # --- Show results --- #
-        # result = ShowResult(ocp_tp, sol_tp)
+        # result = ShowResult(ocp, sol)
         # result.graphs()
         # result = ShowResult(ocp, sol)
         # result.graphs()
-        # # result.animate()
+        # result.animate()
 
