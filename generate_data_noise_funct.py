@@ -23,8 +23,6 @@ N = 150
 # u_co = u_sol
 # xf = np.linspace(-Fs/2, Fs/2, N)
 t = np.linspace(0, T, N)
-
-np.random.seed(50)
 def markers_fun(biorbd_model):
     qMX = MX.sym('qMX', biorbd_model.nbQ())
     return Function('markers', [qMX], [biorbd_model.markers(qMX)])
@@ -38,9 +36,11 @@ def generate_noise(model, q, excitations, marker_noise_level, EMG_noise_level):
     EMG_no_noise = scipy.fftpack.ifft(EMG_fft)
     EMG_fft_noise = EMG_fft
     for k in range(biorbd_model.nbMuscles()):
-        EMG_fft_noise[k, 0] += np.random.normal(0, (np.real(EMG_fft_noise[k, 0]*0.2)))
+        # EMG_fft_noise[k, 0] += np.random.normal(0, (np.real(EMG_fft_noise[k, 0]*0.2)))
         for i in range(1, 3):
-            rand_noise = np.random.rand() * (np.real(EMG_fft[k, i]) * EMG_noise_level) + 0.1
+            # print(np.real(EMG_fft[k, i]) * EMG_noise_level*10)
+            # print(1/i * (EMG_noise_level))
+            rand_noise = np.random.normal(1/i * (EMG_noise_level), np.abs(np.real(EMG_fft[k, i]) * EMG_noise_level*10))
             EMG_fft_noise[k, i] += rand_noise
             EMG_fft_noise[k, -i] += rand_noise
     EMG_noise = np.real(scipy.fftpack.ifft(EMG_fft_noise))
