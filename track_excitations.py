@@ -4,6 +4,8 @@ import numpy as np
 from casadi import MX, Function
 import matplotlib.pyplot as plt
 import pickle
+import sys
+
 from bioptim import (
     OptimalControlProgram,
     ObjectiveList,
@@ -23,7 +25,7 @@ from bioptim import (
 import os
 import scipy.io as sio
 
-def compute_err(Ns_mhe, X_est ,U_est, Ns, model, q, dq, tau, excitations, nbGT):
+def compute_err(Ns_mhe, X_est ,U_est, Ns, model, q, dq, tau, activations, excitations, nbGT):
     model = model
     get_markers = markers_fun(model)
     err = dict()
@@ -34,6 +36,8 @@ def compute_err(Ns_mhe, X_est ,U_est, Ns, model, q, dq, tau, excitations, nbGT):
     dq_ref = dq[:, :-Ns_mhe]
     tau_ref = tau[:, :-Ns_mhe-1]
     musces_ref = excitations[:, :-Ns_mhe-1]
+    if use_activation:
+        musces_ref = activations[:, :-Ns_mhe-1]
     sol_mark = np.zeros((3, model.nbMarkers(), Ns+1-Ns_mhe))
     sol_mark_ref = np.zeros((3, model.nbMarkers(), Ns+1-Ns_mhe))
     err['q'] = np.linalg.norm(X_est[:model.nbQ(), :]-q_ref)/norm_err
@@ -129,9 +133,12 @@ def prepare_ocp(
 
 
 if __name__ == "__main__":
-    use_activation = False
+    use_activation = True
     use_torque = False
     use_ACADOS = True
+    use_bash = True
+    save_stats = True
+
     T = 0.8
     Ns = 100
     motion = 'REACH2'
@@ -187,7 +194,7 @@ if __name__ == "__main__":
     ocp.update_initial_guess(x_init, u_init)
 
     objectives = ObjectiveList()
-    objectives.add(Objective.Lagrange.TRACK_MUSCLES_CONTROL, weight=100000, target=muscles_target)
+    objectives.add(Objective.Lagrange.TRACK_MUSCLES_CONTROL, weight=1000, target=muscles_target)
     objectives.add(Objective.Lagrange.TRACK_MARKERS, weight=10000000, target=markers_target)
     objectives.add(Objective.Lagrange.MINIMIZE_STATE, weight=10, states_idx=np.array(range(nbQ)))
     objectives.add(Objective.Lagrange.MINIMIZE_STATE, weight=10, states_idx=np.array(range(nbQ, nbQ * 2)))
@@ -243,49 +250,53 @@ if __name__ == "__main__":
     err_offset = 30
     err = compute_err(
         err_offset,
-        X_est[:, :-err_offset], U_est[:, :-err_offset-1], Ns, biorbd_model, q_sol, dq_sol, tau, u_sol, nbGT
+        X_est[:, :-err_offset], U_est[:, :-err_offset-1], Ns, biorbd_model, q_sol, dq_sol, tau, a_sol, u_sol, nbGT
     )
 
     use_noise = False
     print(err)
     err_tmp = np.array([[Ns, toc, err['q'], err['q_dot'], err['tau'], err['muscles'], err['markers']]])
-    if os.path.isfile(f"solutions/stats_ac_noise{use_noise}.mat"):
-        matcontent = sio.loadmat(
-            f"solutions/stats_ac_noise{use_noise}.mat")
-        err_mat = np.concatenate((matcontent['err_tries'], err_tmp))
-        err_dic = {"err_tries": err_mat}
-        sio.savemat(f"solutions/stats_ac_noise{use_noise}.mat", err_dic)
+    if save_stats :
+        if os.path.isfile(f"solutions/stats_ac_activation_driven{use_activation}.mat"):
+            matcontent = sio.loadmat(
+                f"solutions/stats_ac_activation_driven{use_activation}.mat")
+            err_mat = np.concatenate((matcontent['err_tries'], err_tmp))
+            err_dic = {"err_tries": err_mat}
+            sio.savemat(f"solutions/stats_ac_activation_driven{use_activation}.mat", err_dic)
 
-    # plt.subplot(211)
-    # plt.plot(X_est[:biorbd_model.nbQ(), :].T, 'x')
-    # plt.gca().set_prop_cycle(None)
-    # plt.plot(q_sol.T)
-    # plt.legend(labels=['Q estimate', 'Q truth'], bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=0.)
-    # plt.subplot(212)
-    # plt.plot(X_est[biorbd_model.nbQ():, :].T, 'x')
-    # plt.gca().set_prop_cycle(None)
-    # plt.plot(dq_sol.T)
-    # plt.legend(labels=['Qdot estimate', 'Qdot truth'], bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=0.)
-    # # plt.tight_layout()
-    #
-    # plt.figure()
-    # if use_torque:
-    #     plt.subplot(211)
-    #     plt.plot(U_est[:nbGT, :].T, 'x', label='Tau estimate')
-    #     plt.gca().set_prop_cycle(None)
-    #     plt.plot(tau.T)
-    #     plt.legend(labels=['Tau estimate', 'Tau truth'], bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=0.)
-    #     plt.subplot(212)
-    # plt.plot(U_est[nbGT:, :].T, 'x')
-    # plt.gca().set_prop_cycle(None)
-    # plt.plot(u_sol.T)
-    # plt.legend(
-    #     labels=['Muscle excitation estimate', 'Muscle excitation truth'],
-    #     bbox_to_anchor=(1, 1),
-    #     loc='upper left', borderaxespad=0.
-    # )
+    plt.subplot(211)
+    plt.plot(X_est[:biorbd_model.nbQ(), :].T, 'x')
+    plt.gca().set_prop_cycle(None)
+    plt.plot(q_sol.T)
+    plt.legend(labels=['Q estimate', 'Q truth'], bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=0.)
+    plt.subplot(212)
+    plt.plot(X_est[biorbd_model.nbQ():, :].T, 'x')
+    plt.gca().set_prop_cycle(None)
+    plt.plot(dq_sol.T)
+    plt.legend(labels=['Qdot estimate', 'Qdot truth'], bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=0.)
     # plt.tight_layout()
-    # plt.show()
+
+    plt.figure()
+    if use_torque:
+        plt.subplot(211)
+        plt.plot(U_est[:nbGT, :].T, 'x', label='Tau estimate')
+        plt.gca().set_prop_cycle(None)
+        plt.plot(tau.T)
+        plt.legend(labels=['Tau estimate', 'Tau truth'], bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=0.)
+        plt.subplot(212)
+    plt.plot(U_est[nbGT:, :].T, 'x')
+    plt.gca().set_prop_cycle(None)
+    if use_activation:
+        plt.plot(a_sol.T)
+    else:
+        plt.plot(u_sol.T)
+    plt.legend(
+        labels=['Muscle excitation estimate', 'Muscle excitation truth'],
+        bbox_to_anchor=(1, 1),
+        loc='upper left', borderaxespad=0.
+    )
+    plt.tight_layout()
+    plt.show()
     # if use_activation:
     #     ocp.save_get_data(
     #         sol, f"solutions/tracking_markers_EMG_activations_driven.bob"
