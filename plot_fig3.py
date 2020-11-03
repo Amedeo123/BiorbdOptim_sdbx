@@ -19,25 +19,26 @@ motion = "REACH2"
 nb_try = 20
 marker_noise_lvl = [0, 0.002, 0.005, 0.01]
 EMG_noise_lvl = [0, 0.05, 0.1, 0.2, 0]
-EMG_lvl = ['track, n_lvl=0', 'track, n_lvl=0.05', 'track, n_lvl=0.1', 'track, n_lvl=0.2', 'minimize']
+EMG_lvl_label = ['track, n_lvl=0', 'track, n_lvl=0.05', 'track, n_lvl=0.1', 'track, n_lvl=0.2', 'minimize']
 states_controls = ['q', 'dq', 'act', 'exc']
 co_lvl = 4
+co_lvl_label = ['None', 'low', 'mid', 'high']
 RMSEmin = np.ndarray((co_lvl * len(marker_noise_lvl) * len(EMG_noise_lvl) * 4 * nb_try))
 RMSEtrack = np.ndarray((co_lvl * len(marker_noise_lvl) * len(EMG_noise_lvl) * 4 * nb_try))
 
-co_lvl_df = [0]*len(marker_noise_lvl)*len(EMG_noise_lvl)*4*nb_try \
-            + [1]*len(marker_noise_lvl)*len(EMG_noise_lvl)*4*nb_try \
-            + [2]*len(marker_noise_lvl)*len(EMG_noise_lvl)*4*nb_try \
-            + [3]*len(marker_noise_lvl)*len(EMG_noise_lvl)*4*nb_try
+co_lvl_df = [co_lvl_label[0]]*len(marker_noise_lvl)*len(EMG_noise_lvl)*4*nb_try \
+            + [co_lvl_label[1]]*len(marker_noise_lvl)*len(EMG_noise_lvl)*4*nb_try \
+            + [co_lvl_label[2]]*len(marker_noise_lvl)*len(EMG_noise_lvl)*4*nb_try \
+            + [co_lvl_label[3]]*len(marker_noise_lvl)*len(EMG_noise_lvl)*4*nb_try
 
 marker_n_lvl_df = ([marker_noise_lvl[0]]*len(EMG_noise_lvl)*4*nb_try
                    + [marker_noise_lvl[1]]*len(EMG_noise_lvl)*4*nb_try
                    + [marker_noise_lvl[2]]*len(EMG_noise_lvl)*4*nb_try
                    + [marker_noise_lvl[3]]*len(EMG_noise_lvl)*4*nb_try)*co_lvl
 
-EMG_n_lvl_df = ([EMG_lvl[0]]*4*nb_try + [EMG_lvl[1]]*4*nb_try
-                + [EMG_lvl[2]]*4*nb_try + [EMG_lvl[3]]*4*nb_try
-                + [EMG_lvl[4]]*4*nb_try)*co_lvl*len(marker_noise_lvl)
+EMG_n_lvl_df = ([EMG_lvl_label[0]]*4*nb_try + [EMG_lvl_label[1]]*4*nb_try
+                + [EMG_lvl_label[2]]*4*nb_try + [EMG_lvl_label[3]]*4*nb_try
+                + [EMG_lvl_label[4]]*4*nb_try)*co_lvl*len(marker_noise_lvl)
 
 states_controls_df = ([states_controls[0]]*nb_try + [states_controls[1]]*nb_try + [states_controls[2]]*nb_try
                       + [states_controls[3]]*nb_try)*co_lvl*len(marker_noise_lvl)*len(EMG_noise_lvl)
