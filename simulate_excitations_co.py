@@ -51,7 +51,7 @@ def prepare_ocp(
     # Add objective functions
     objective_functions = ObjectiveList()
     objective_functions.add(
-        Objective.Lagrange.MINIMIZE_STATE, weight=1, states_idx=np.array(range(biorbd_model.nbQ())))
+        Objective.Lagrange.MINIMIZE_STATE, weight=10, states_idx=np.array(range(biorbd_model.nbQ())))
     objective_functions.add(Objective.Lagrange.MINIMIZE_STATE, weight=10,
                             states_idx=np.array(range(biorbd_model.nbQ(), biorbd_model.nbQ() * 2)))
     objective_functions.add(
@@ -63,7 +63,7 @@ def prepare_ocp(
 
     objective_functions.add(
         Objective.Mayer.TRACK_STATE,
-        weight=1000,
+        weight=100000,
         target=np.tile(xT[:biorbd_model.nbQ()], (number_shooting_points + 1, 1)).T,
         states_idx=np.array(range(biorbd_model.nbQ()))
     )
@@ -136,15 +136,17 @@ if __name__ == "__main__":
     else:
         excitations_init = [
             [0.05] * biorbd_model.nbMuscleTotal(),
+            [0.05] * 6 + [0.1] * 3 + [0.05] * 10,
             [0.05] * 6 + [0.2] * 3 + [0.05] * 10,
             [0.05] * 6 + [0.3] * 3 + [0.05] * 10,
-            [0.05] * 6 + [0.4] * 3 + [0.05] * 10
+            # [0.05] * 6 + [0.4] * 3 + [0.05] * 10
         ]
         excitations_min = [
             [0] * biorbd_model.nbMuscleTotal(),
+            [0] * 6 + [0.1] * 3 + [0] * 10,
             [0] * 6 + [0.2] * 3 + [0] * 10,
             [0] * 6 + [0.3] * 3 + [0] * 10,
-            [0] * 6 + [0.4] * 3 + [0] * 10
+            # [0] * 6 + [0.4] * 3 + [0] * 10
         ]
 
     ocp = prepare_ocp(biorbd_model=biorbd_model, final_time=T, number_shooting_points=Ns, x0=x0, xT=xT, use_SX=True)
@@ -248,11 +250,12 @@ if __name__ == "__main__":
                 #     plt.step(t, u_co[i, :])
                 #     plt.step(t, e_exc[i, :], c='red')
                 # plt.show()
-            if i == 0:
-                ocp.save_get_data(
-                    sol, f"solutions/sim_ac_{int(T * 1000)}ms_{Ns}sn_{motion}_co_level_{i}.bob"
-                )
+
             if save_data:
+                if i == 0:
+                    ocp.save_get_data(
+                        sol, f"solutions/sim_ac_{int(T * 1000)}ms_{Ns}sn_{motion}_co_level_{i}.bob"
+                    )
                 ocp.save_get_data(
                     sol, f"solutions/sim_ac_{int(T * 1000)}ms_{Ns}sn_{motion}_co_level_{i}_tmp.bob"
                 )
@@ -387,9 +390,7 @@ if __name__ == "__main__":
             b.exec()
 
         # --- Show results --- #
-        # result = ShowResult(ocp, sol)
-        # result.graphs()
-        # result = ShowResult(ocp, sol)
-        # result.graphs()
+        result = ShowResult(ocp, sol)
+        result.graphs()
         # result.animate()
 
