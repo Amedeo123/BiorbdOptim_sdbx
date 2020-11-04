@@ -164,7 +164,7 @@ if __name__ == "__main__":
     use_ACADOS = True
     WRITE_STATS = False
     save_results = True
-    TRACK_EMG = True
+    TRACK_EMG = False
     use_noise = True
     use_co = True
     use_bash = False
@@ -255,8 +255,8 @@ if __name__ == "__main__":
         # Loop for marker and EMG noise
         for marker_lvl in range(len(marker_noise_lvl)):
         # for marker_lvl in range(3, 4):
-            for EMG_lvl in range(len(EMG_noise_lvl)):
-            # for EMG_lvl in range(2,3):
+        #     for EMG_lvl in range(len(EMG_noise_lvl)):
+            for EMG_lvl in range(1):
                 get_markers = markers_fun(biorbd_model)
                 markers_target = np.zeros((3, biorbd_model.nbMarkers(), Ns + 1))
                 for i in range(Ns + 1):
