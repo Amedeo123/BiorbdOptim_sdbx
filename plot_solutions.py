@@ -7,25 +7,27 @@ import numpy as np
 import csv
 import pandas as pd
 import seaborn
+import matplotlib
 from matplotlib.colors import LogNorm
 
 biorbd_model = biorbd.Model("arm_wt_rot_scap.bioMod")
 T = 0.8
 Ns = 100
 motion = "REACH2"
-nb_try = 20
+nb_try = 1
 marker_noise_lvl = [0, 0.002, 0.005, 0.01]
 EMG_noise_lvl = [0, 0.05, 0.1, 0.2]
 co_lvl = 4
 RMSE = np.ndarray((co_lvl, len(marker_noise_lvl), 4 * len(EMG_noise_lvl)))
+STD = np.ndarray((co_lvl, len(marker_noise_lvl), 4 * len(EMG_noise_lvl)))
 count = 0
 for co in range(co_lvl):
     for marker_lvl in range(len(marker_noise_lvl)):
         count = 0
         for EMG_lvl in range(len(EMG_noise_lvl)):
             mat_content = sio.loadmat(
-                # f"solutions/with_track_emg/track_mhe_w_EMG_excitation_driven_co_lvl{co}_noise_lvl_{marker_noise_lvl[marker_lvl]}_{EMG_noise_lvl[EMG_lvl]}.mat"
-                f"solutions/wt_track_emg/track_mhe_wt_EMG_excitation_driven_co_lvl{co}_noise_lvl_{marker_noise_lvl[marker_lvl]}_{EMG_noise_lvl[EMG_lvl]}.mat"
+                # f"solutions/w_track_low_weight/track_mhe_w_EMG_excitation_driven_co_lvl{co}_noise_lvl_{marker_noise_lvl[marker_lvl]}_{EMG_noise_lvl[EMG_lvl]}.mat"
+                f"solutions/wt_track_low_weight/track_mhe_wt_EMG_excitation_driven_co_lvl{co}_noise_lvl_{marker_noise_lvl[marker_lvl]}_{EMG_noise_lvl[EMG_lvl]}.mat"
             )
             Nmhe = mat_content['N_mhe']
             N = mat_content['N_tot']
@@ -77,15 +79,20 @@ for co in range(co_lvl):
             u_target_mean = np.mean(mat_content['u_target'], axis=0)
             Ns_mhe = mat_content['N_mhe']
             RMSE[co, marker_lvl, count] = Q_err
+            STD[co, marker_lvl, count] = Q_std
             RMSE[co, marker_lvl, count + 1] = DQ_err
+            STD[co, marker_lvl, count + 1] = DQ_std
             RMSE[co, marker_lvl, count + 2] = A_err
+            STD[co, marker_lvl, count + 2] = A_std
             RMSE[co, marker_lvl, count + 3] = U_err
+            STD[co, marker_lvl, count + 3] = U_std
             count += 4
 
 ax = seaborn.heatmap(RMSE[1, :, :], annot=True, linewidths=0.2, norm=LogNorm())
-for i in range(co_lvl):
-    pd.DataFrame(RMSE[i, :, :]).to_csv(f"solutions/RMSE_wt_EMG_{i}.csv")
-    # pd.DataFrame(RMSE[i, :, :]).to_csv(f"solutions/RMSE_w_EMG_{i}.csv")
+plt.show()
+# for i in range(co_lvl):
+#     pd.DataFrame(RMSE[i, :, :]).to_csv(f"solutions/RMSE_wt_EMG_{i}.csv")
+#     # pd.DataFrame(RMSE[i, :, :]).to_csv(f"solutions/RMSE_w_EMG_{i}.csv")
 
 # t = np.linspace(0, T, Ns + 1)
 # q_name = [biorbd_model.nameDof()[i].to_string() for i in range(biorbd_model.nbQ())]
