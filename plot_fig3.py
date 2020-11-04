@@ -174,7 +174,7 @@ print(f"Number of optim convergence without EMG tracking: {count_nc_min}")
 print(f"Convergence rate with EMG tracking: {100-count_nc_track/(count/5)*100}%")
 print(f"Convergence rate without EMG tracking: {100-count_nc_min/(count/5)*100}%")
 RMSEtrack_pd = pd.DataFrame({"RMSE": RMSEtrack, "co-contraction level": co_lvl_df, "EMG_objective": EMG_n_lvl_df,
-                             "Marker noise level": marker_n_lvl_df, "component": states_controls_df})
+                             "Marker noise level (m)": marker_n_lvl_df, "component": states_controls_df})
 
 
 ax = seaborn.boxplot(y = RMSEtrack_pd['RMSE'][RMSEtrack_pd['component'] == 'exc'], x = RMSEtrack_pd['co-contraction level'],
@@ -199,7 +199,7 @@ ax2 = seaborn.boxplot(y = RMSEtrack_pd['RMSE'][(RMSEtrack_pd['component'] == 'q'
                       x = RMSEtrack_pd['Marker noise level'],
                       hue=RMSEtrack_pd['EMG_objective'],)
 
-ax2.set(ylabel='RMSE on joint positions')
+ax2.set(ylabel='RMSE on joint positions (rad)')
 ax2.xaxis.get_label().set_fontsize(20)
 ax2.yaxis.get_label().set_fontsize(20)
 ax2.tick_params(labelsize=15)
