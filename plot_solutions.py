@@ -26,8 +26,8 @@ for co in range(co_lvl):
         count = 0
         for EMG_lvl in range(len(EMG_noise_lvl)):
             mat_content = sio.loadmat(
-                # f"solutions/w_track_low_weight/track_mhe_w_EMG_excitation_driven_co_lvl{co}_noise_lvl_{marker_noise_lvl[marker_lvl]}_{EMG_noise_lvl[EMG_lvl]}.mat"
-                f"solutions/wt_track_low_weight/track_mhe_wt_EMG_excitation_driven_co_lvl{co}_noise_lvl_{marker_noise_lvl[marker_lvl]}_{EMG_noise_lvl[EMG_lvl]}.mat"
+                f"solutions/w_track_low_weight/track_mhe_w_EMG_excitation_driven_co_lvl{co}_noise_lvl_{marker_noise_lvl[marker_lvl]}_{EMG_noise_lvl[EMG_lvl]}.mat"
+                # f"solutions/wt_track_low_weight/track_mhe_wt_EMG_excitation_driven_co_lvl{co}_noise_lvl_{marker_noise_lvl[marker_lvl]}_{EMG_noise_lvl[EMG_lvl]}.mat"
             )
             Nmhe = mat_content['N_mhe']
             N = mat_content['N_tot']
@@ -60,8 +60,9 @@ for co in range(co_lvl):
             DQ_err = np.linalg.norm(
                 X_est[:, biorbd_model.nbQ():biorbd_model.nbQ() * 2, :] - dq_ref_try, axis=2) / np.sqrt(NS + 1)
             DQ_err = np.mean(DQ_err, axis=1)
-            DQ_err = np.mean(DQ_err)
             DQ_std = np.std(DQ_err)
+            DQ_err = np.mean(DQ_err)
+
 
             A_err = np.linalg.norm(
                 X_est[:, -biorbd_model.nbMuscles():, :] - a_ref_try, axis=2) / np.sqrt(NS + 1)
@@ -72,8 +73,9 @@ for co in range(co_lvl):
             U_err = np.linalg.norm(
                 U_est[:, -biorbd_model.nbMuscles():, :] - u_ref_try, axis=2) / np.sqrt(NS)
             U_err = np.mean(U_err, axis=1)
-            U_err = np.mean(U_err)
             U_std = np.std(U_err)
+            U_err = np.mean(U_err)
+
 
             markers_target_mean = np.mean(mat_content['markers_target'], axis=0)
             u_target_mean = np.mean(mat_content['u_target'], axis=0)
@@ -87,6 +89,27 @@ for co in range(co_lvl):
             RMSE[co, marker_lvl, count + 3] = U_err
             STD[co, marker_lvl, count + 3] = U_std
             count += 4
+form = '{0:.3f}'
+for co in range(co_lvl):
+    for marker_lvl in range(len(marker_noise_lvl)):
+        print(
+            f"{marker_lvl} & {float(form.format(RMSE[co, marker_lvl, 0]))} $ \pm $ {float(form.format(STD[co, marker_lvl, 0]))} "
+            f"& {float(form.format(RMSE[co, marker_lvl, 1]))} $ \pm $ {float(form.format(STD[co, marker_lvl, 1]))} "
+            f"& {float(form.format(RMSE[co, marker_lvl, 2]))} $ \pm $ {float(form.format(STD[co, marker_lvl, 2]))} "
+            f"& {float(form.format(RMSE[co, marker_lvl, 3]))} $ \pm $ {float(form.format(STD[co, marker_lvl, 3]))} "
+              f"& {float(form.format(RMSE[co, marker_lvl, 4]))} $ \pm $ {float(form.format(STD[co, marker_lvl, 4]))} "
+              f"& {float(form.format(RMSE[co, marker_lvl, 5]))} $ \pm $ {float(form.format(STD[co, marker_lvl, 5]))} "
+              f"& {float(form.format(RMSE[co, marker_lvl, 6]))} $ \pm $ {float(form.format(STD[co, marker_lvl, 6]))} "
+              f"& {float(form.format(RMSE[co, marker_lvl, 7]))} $ \pm $ {float(form.format(STD[co, marker_lvl, 7]))} "
+              f"& {float(form.format(RMSE[co, marker_lvl, 8]))} $ \pm $ {float(form.format(STD[co, marker_lvl, 8]))} "
+              f"& {float(form.format(RMSE[co, marker_lvl, 9]))} $ \pm $ {float(form.format(STD[co, marker_lvl, 9]))} "
+              f"& {float(form.format(RMSE[co, marker_lvl, 10]))} $ \pm $ {float(form.format(STD[co, marker_lvl,10]))} "
+              f"& {float(form.format(RMSE[co, marker_lvl, 11]))} $ \pm $ {float(form.format(STD[co, marker_lvl,11]))} "
+              f"& {float(form.format(RMSE[co, marker_lvl, 12]))} $ \pm $ {float(form.format(STD[co, marker_lvl,12]))} "
+              f"& {float(form.format(RMSE[co, marker_lvl, 13]))} $ \pm $ {float(form.format(STD[co, marker_lvl,13]))} "
+              f"& {float(form.format(RMSE[co, marker_lvl, 14]))} $ \pm $ {float(form.format(STD[co, marker_lvl,14]))} "
+              f"& {float(form.format(RMSE[co, marker_lvl, 15]))} $ \pm $ {float(form.format(STD[co, marker_lvl,15]))} \\")
+
 
 ax = seaborn.heatmap(RMSE[1, :, :], annot=True, linewidths=0.2, norm=LogNorm())
 plt.show()
