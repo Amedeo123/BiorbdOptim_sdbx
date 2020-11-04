@@ -28,7 +28,7 @@ RMSEtrack = np.ndarray((co_lvl * len(marker_noise_lvl) * len(EMG_noise_lvl) * 4 
 
 W_LOW_WEIGHTS = True
 folder_w_track = "solutions/w_track_low_weight_2"
-folder_wt_track = "solutions/wt_track_low_weight"
+folder_wt_track = "solutions/wt_track_low_weight_2"
 
 co_lvl_df = [co_lvl_label[0]]*len(marker_noise_lvl)*len(EMG_noise_lvl)*4*nb_try \
             + [co_lvl_label[1]]*len(marker_noise_lvl)*len(EMG_noise_lvl)*4*nb_try \
