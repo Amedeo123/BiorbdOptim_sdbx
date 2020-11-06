@@ -11,7 +11,7 @@ df2 = pickle.load(pk2)
 # DF1
 # PLOT
 plt.subplot(121)
-seaborn.boxplot(y=df1['RMSE'], x=df1['co_contraction_level'], hue=df1['EMG_objective'])
+seaborn.stripplot(y=df1['RMSE'], x=df1['co_contraction_level'], hue=df1['EMG_objective'])
 
 # STATS
 aov = pg.anova(dv='RMSE', between=['EMG_objective', 'co_contraction_level'],
@@ -23,7 +23,7 @@ pg.print_table(ptt.round(3))
 # DF2
 # PLOT
 plt.subplot(122)
-seaborn.boxplot(y=df2['RMSE'], x=df2['Marker_noise_level_m'], hue=df2['EMG_objective'])
+seaborn.stripplot(y=df2['RMSE'], x=df2['Marker_noise_level_m'], hue=df2['EMG_objective'])
 aov = pg.anova(dv='RMSE', between=['Marker_noise_level_m', "EMG_objective"],
                data=df2, detailed=True)
 ptt = pg.pairwise_ttests(dv='RMSE', between=['Marker_noise_level_m', "EMG_objective"], data=df2, padjust='bonf')
