@@ -104,3 +104,6 @@ examples/sandbox
 # Remove ACADOS compilation folder
 c_generated_code
 *.json
+
+# Remove bioptim
+bioptim/
