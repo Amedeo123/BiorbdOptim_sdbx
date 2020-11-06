@@ -81,13 +81,14 @@ def markers_fun(biorbd_model):
 def get_MHE_time_lenght(Ns_mhe, use_exc):
     # Nmhe>2
     # To be adjusted to guarantee real-time
+    # Based on frequencies extracted from Fig.1
     if use_exc:
         times_lenght = [0.024, 0.024, 0.024, 0.024,  # 1 sample on 3
                         0.032, 0.032,  # 1 sample on 4
                         0.04, 0.04,  # 1 sample on 5
                         0.048, 0.048, 0.048, 0.048, 0.048, 0.048,  # 1 sample on 6
                         0.056,  # 1 sample on 7
-                        0.064, 0.064, # 1 sample on 8
+                        0.064, 0.064,  # 1 sample on 8
                         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
     return times_lenght[Ns_mhe-2]
 
