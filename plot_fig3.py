@@ -8,6 +8,7 @@ import csv
 import pandas as pd
 import seaborn
 from matplotlib.colors import LogNorm
+import pingouin as pg
 
 seaborn.set_style("whitegrid")
 seaborn.color_palette()
@@ -19,7 +20,9 @@ motion = "REACH2"
 nb_try = 20
 marker_noise_lvl = [0, 0.002, 0.005, 0.01]
 EMG_noise_lvl = [0, 0.05, 0.1, 0.2, 0]
+EMG_noise_lvl = [0, 0]
 EMG_lvl_label = ['track, n_lvl=0', 'track, n_lvl=0.05', 'track, n_lvl=0.1', 'track, n_lvl=0.2', 'minimize']
+EMG_lvl_label = ['track', 'minimize']
 states_controls = ['q', 'dq', 'act', 'exc']
 co_lvl = 4
 co_lvl_label = ['None', 'low', 'mid', 'high']
@@ -27,8 +30,8 @@ RMSEmin = np.ndarray((co_lvl * len(marker_noise_lvl) * len(EMG_noise_lvl) * 4 * 
 RMSEtrack = np.ndarray((co_lvl * len(marker_noise_lvl) * len(EMG_noise_lvl) * 4 * nb_try))
 
 W_LOW_WEIGHTS = True
-folder_w_track = "solutions/w_track_low_weight_2"
-folder_wt_track = "solutions/wt_track_low_weight_2"
+folder_w_track = "solutions/w_track_low_weight_3"
+folder_wt_track = "solutions/wt_track_low_weight_3"
 
 co_lvl_df = [co_lvl_label[0]]*len(marker_noise_lvl)*len(EMG_noise_lvl)*4*nb_try \
             + [co_lvl_label[1]]*len(marker_noise_lvl)*len(EMG_noise_lvl)*4*nb_try \
@@ -40,9 +43,17 @@ marker_n_lvl_df = ([marker_noise_lvl[0]]*len(EMG_noise_lvl)*4*nb_try
                    + [marker_noise_lvl[2]]*len(EMG_noise_lvl)*4*nb_try
                    + [marker_noise_lvl[3]]*len(EMG_noise_lvl)*4*nb_try)*co_lvl
 
-EMG_n_lvl_df = ([EMG_lvl_label[0]]*4*nb_try + [EMG_lvl_label[1]]*4*nb_try
-                + [EMG_lvl_label[2]]*4*nb_try + [EMG_lvl_label[3]]*4*nb_try
-                + [EMG_lvl_label[4]]*4*nb_try)*co_lvl*len(marker_noise_lvl)
+# EMG_n_lvl_df = ([EMG_lvl_label[0]]*4*nb_try + [EMG_lvl_label[1]]*4*nb_try
+#                 + [EMG_lvl_label[2]]*4*nb_try + [EMG_lvl_label[3]]*4*nb_try
+#                 + [EMG_lvl_label[4]]*4*nb_try)*co_lvl*len(marker_noise_lvl)
+#
+# EMG_n_lvl_stats = (['track']*4*nb_try + ['track']*4*nb_try
+#                 + ['track']*4*nb_try + ['track']*4*nb_try
+#                 + ['minimize']*4*nb_try)*co_lvl*len(marker_noise_lvl)
+
+EMG_n_lvl_df = ([EMG_lvl_label[0]]*4*nb_try + [EMG_lvl_label[1]]*4*nb_try)*co_lvl*len(marker_noise_lvl)
+
+EMG_n_lvl_stats = (['track']*4*nb_try + ['minimize']*4*nb_try)*co_lvl*len(marker_noise_lvl)
 
 states_controls_df = ([states_controls[0]]*nb_try + [states_controls[1]]*nb_try + [states_controls[2]]*nb_try
                       + [states_controls[3]]*nb_try)*co_lvl*len(marker_noise_lvl)*len(EMG_noise_lvl)
@@ -81,12 +92,12 @@ for co in range(co_lvl):
             for i in range(nb_try):
                 if EMG_lvl_label[EMG_lvl] == "minimize":
                     with open(f'{folder_wt_track}/status_track_EMGFalse.txt') as f:
-                        if f"9; {co}; {marker_lvl}; {EMG_lvl}; {i}" in f.read():
+                        if f"9; {co}; {marker_lvl}; {EMG_noise_lvl[EMG_lvl]}; {i}" in f.read():
                             q_ref_try[i, :, :] = np.nan
                             dq_ref_try[i, :, :] = np.nan
                             a_ref_try[i, :, :] = np.nan
                             u_ref_try[i, :, :] = np.nan
-                            count_nc_track += 1
+                            count_nc_min += 1
                         else:
                             q_ref_try[i, :, :] = q_ref
                             dq_ref_try[i, :, :] = dq_ref
@@ -99,7 +110,7 @@ for co in range(co_lvl):
                             dq_ref_try[i, :, :] = np.nan
                             a_ref_try[i, :, :] = np.nan
                             u_ref_try[i, :, :] = np.nan
-                            count_nc_min += 1
+                            count_nc_track += 1
                         else:
                             q_ref_try[i, :, :] = q_ref
                             dq_ref_try[i, :, :] = dq_ref
@@ -130,12 +141,29 @@ print(f"Number of optim convergence without EMG tracking: {count_nc_min}")
 
 print(f"Convergence rate with EMG tracking: {100-count_nc_track/(count/5)*100}%")
 print(f"Convergence rate without EMG tracking: {100-count_nc_min/(count/5)*100}%")
-RMSEtrack_pd = pd.DataFrame({"RMSE": RMSEtrack, "co-contraction level": co_lvl_df, "EMG_objective": EMG_n_lvl_df,
-                             "Marker noise level (m)": marker_n_lvl_df, "component": states_controls_df})
+
+RMSEtrack_pd = pd.DataFrame({"RMSE": RMSEtrack, "co_contraction_level": co_lvl_df, "EMG_objective": EMG_n_lvl_df,
+                             "Marker_noise_level_m": marker_n_lvl_df, "component": states_controls_df})
+
+# STATS
+df_stats = pd.DataFrame({"RMSE": RMSEtrack, "co_contraction_level": co_lvl_df, "EMG_objective": EMG_n_lvl_stats,
+                             "Marker_noise_level_m": marker_n_lvl_df, "component": states_controls_df})
+df_stats = df_stats[RMSEtrack_pd['component'] == 'exc']
+df_stats = df_stats[df_stats['RMSE'].notna()]
+df_stats.to_pickle('stats_df_1.pkl')
+
+aov = pg.anova(dv='RMSE', between=['EMG_objective', 'co_contraction_level'],
+               data=df_stats)
+ptt = pg.pairwise_ttests(dv='RMSE', between=['EMG_objective', 'co_contraction_level'], data=df_stats, padjust='bonf')
+pg.print_table(aov.round(3))
+pg.print_table(ptt.round(3))
 
 
-ax = seaborn.boxplot(y = RMSEtrack_pd['RMSE'][RMSEtrack_pd['component'] == 'exc'], x = RMSEtrack_pd['co-contraction level'],
-                hue=RMSEtrack_pd['EMG_objective'])
+# PLOT
+
+ax = seaborn.boxplot(y=RMSEtrack_pd['RMSE'][RMSEtrack_pd['component'] == 'exc'],
+                     x=RMSEtrack_pd['co_contraction_level'],
+                     hue=RMSEtrack_pd['EMG_objective'])
 
 if W_LOW_WEIGHTS:
     title_str = "with lower weights on markers"
@@ -151,11 +179,24 @@ plt.setp(ax.get_legend().get_title(), fontsize='20') # for legend title
 plt.title(f'Error on excitations {title_str}', fontsize=20)
 plt.figure()
 
+# STATS
+df_stats = pd.DataFrame({"RMSE": RMSEtrack, "co_contraction_level": co_lvl_df, "EMG_objective": EMG_n_lvl_stats,
+                             "Marker_noise_level_m": marker_n_lvl_df, "component": states_controls_df})
+df_stats = df_stats[(RMSEtrack_pd['component'] == 'q')]
+df_stats = df_stats[df_stats['RMSE'].notna()]
+df_stats.to_pickle('stats_df_2.pkl')
+
+aov = pg.anova(dv='RMSE', between=['Marker_noise_level_m', "EMG_objective"],
+               data=df_stats, detailed=True)
+ptt = pg.pairwise_ttests(dv='RMSE', between=['Marker_noise_level_m', "EMG_objective"], data=df_stats, padjust='bonf')
+pg.print_table(aov.round(3))
+pg.print_table(ptt.round(3))
+
+# PLOT
 #& RMSEtrack_pd['co-contraction level'] == 0
 ax2 = seaborn.boxplot(y = RMSEtrack_pd['RMSE'][(RMSEtrack_pd['component'] == 'q')],
-                      x = RMSEtrack_pd['Marker noise level (m)'],
+                      x = RMSEtrack_pd['Marker_noise_level_m'],
                       hue=RMSEtrack_pd['EMG_objective'],)
-
 ax2.set(ylabel='RMSE on joint positions (rad)')
 ax2.xaxis.get_label().set_fontsize(20)
 ax2.yaxis.get_label().set_fontsize(20)
