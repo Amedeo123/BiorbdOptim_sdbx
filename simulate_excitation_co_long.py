@@ -73,8 +73,8 @@ def prepare_ocp(
     objective_functions.add(
         Objective.Mayer.TRACK_STATE,
         weight=100000,
-        target=np.tile(xT[:biorbd_model.nbQ()], (number_shooting_points + 1, 1)).T,
-        states_idx=np.array(range(biorbd_model.nbQ()))
+        target=np.tile(xT[:biorbd_model.nbQ()*2], (number_shooting_points + 1, 1)).T,
+        states_idx=np.array(range(biorbd_model.nbQ()*2))
     )
     # Dynamics
     dynamics = DynamicsTypeList()
@@ -87,8 +87,6 @@ def prepare_ocp(
     x_bounds[0].concatenate(
         Bounds([activation_min] * biorbd_model.nbMuscles(), [activation_max] * biorbd_model.nbMuscles())
     )
-    x_bounds[0].min[:nbQ, 0] = [-0.1, -0.3, 0.1, -0.3]
-    x_bounds[0].max[:nbQ, 0] = [-0.1, 0, 0.3, 0]
     # Control path constraint
     u_bounds = BoundsList()
     u_bounds.add(
@@ -128,7 +126,8 @@ if __name__ == "__main__":
     Ns = 100
     co_value = []
     motion = 'REACH2'
-    x_phase = np.array([[0., -0.2, 0, 0, 0, 0, 0, 0],
+    x_phase = np.array([[-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
+                        [0., -0.2, 0, 0, 0, 0, 0, 0],
                         [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
                         [0., -0.2, 0, 0, 0, 0, 0, 0],
                         [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
@@ -178,7 +177,15 @@ if __name__ == "__main__":
         ocp.update_initial_guess(x_init, u_init=u_init)
 
         u_bounds = BoundsOption([u_mi, u_ma], interpolation=InterpolationType.CONSTANT)
-        ocp.update_bounds(u_bounds=u_bounds)
+        x_bounds = BoundsList()
+        x_bounds.add(QAndQDotBounds(biorbd_model))
+        # add muscle activation bounds
+        x_bounds[0].concatenate(
+            Bounds([0] * biorbd_model.nbMuscles(), [1] * biorbd_model.nbMuscles())
+        )
+        x_bounds[0].min[:biorbd_model.nbQ(), 0] = x_phase[0, :biorbd_model.nbQ()]-0.1
+        x_bounds[0].max[:biorbd_model.nbQ(), 0] = x_phase[0, :biorbd_model.nbQ()]+0.1
+        ocp.update_bounds(x_bounds=x_bounds, u_bounds=u_bounds)
 
         for phase in range(1, nb_phase+1):
             sol = ocp.solve(
@@ -222,8 +229,8 @@ if __name__ == "__main__":
             objectives.add(
                 Objective.Mayer.TRACK_STATE,
                 weight=1000000,
-                target=np.tile(x_phase[phase+1, :biorbd_model.nbQ()], (Ns + 1, 1)).T,
-                states_idx=np.array(range(biorbd_model.nbQ()))
+                target=np.tile(x_phase[phase+1, :biorbd_model.nbQ()*2], (Ns + 1, 1)).T,
+                states_idx=np.array(range(biorbd_model.nbQ()*2))
             )
             print(x_phase[phase+1, :biorbd_model.nbQ()])
             ocp.update_objectives(objectives)
