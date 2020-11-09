@@ -183,11 +183,11 @@ if __name__ == "__main__":
 
     # Variable of the problem
     Ns = 100
-    Ns_mhe = 9
+    Ns_mhe = 4
     if use_bash:
         Ns_mhe = int(sys.argv[1])
     T = 0.8
-    T_mhe = get_MHE_time_lenght(Ns_mhe)
+    T_mhe = get_MHE_time_lenght(Ns_mhe, True)
     rt_ratio = int(Ns/(T/T_mhe))
     if use_try:
         nb_try = 10
