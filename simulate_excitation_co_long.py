@@ -130,13 +130,37 @@ if __name__ == "__main__":
     Ns = 100
     co_value = []
     motion = 'REACH2'
-    x_phase = np.array([[0., -0.2, 0, 0, 0, 0, 0, 0],
+    x_phase = np.array([[-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
                         [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
-                        [0., -0.2, 0, 0, 0, 0, 0, 0],
+                        [-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
                         [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
-                        [0., -0.2, 0, 0, 0, 0, 0, 0],
-                        [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0]])
-    nb_phase = 4
+                        [-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
+                        [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
+                        [-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
+                        [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
+                        [-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
+                        [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
+                        ])
+
+    # x_phase = np.array([[-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
+    #                     [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
+    #                     [0.89, -0.5, -0.5, 0.8, 0, 0, 0, 0],
+    #                     [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
+    #                     [-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
+    #                     [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
+    #                     [0.89, -0.5, -0.5, 0.8, 0, 0, 0, 0],
+    #                     [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
+    #                     [-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
+    #                     [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
+    #                     [0.89, -0.5, -0.5, 0.8, 0, 0, 0, 0],
+    #                     [-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
+    #                     [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
+    #                     [0.89, -0.5, -0.5, 0.8, 0, 0, 0, 0],
+    #                     [-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
+    #                     [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
+    #                     [-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
+    #                     ])
+    nb_phase = 8
     X_est = np.zeros((biorbd_model.nbQ()*2+biorbd_model.nbMuscleTotal(), nb_phase*Ns+1))
     U_est = np.zeros((biorbd_model.nbMuscleTotal(), nb_phase*Ns))
     use_ACADOS = True
@@ -247,7 +271,7 @@ if __name__ == "__main__":
 X_est[:, -1] = x0
 
 dic = {'state': X_est, 'controls': U_est}
-sio.savemat("solutions/state_to_track.mat", dic)
+sio.savemat(f"solutions/state_to_track_{phase}phase.mat", dic)
 
 plt.subplot(211)
 for est, name in zip(X_est[:biorbd_model.nbQ(), :], biorbd_model.nameDof()):
@@ -270,9 +294,9 @@ plt.legend(labels=['u_est'], bbox_to_anchor=(1.05, 1), loc='upper left',
 print()
 plt.show()
 
-b = bioviz.Viz(model_path="arm_wt_rot_scap.bioMod")
-b.load_movement(X_est[:biorbd_model.nbQ(), :])
-b.exec()
+# b = bioviz.Viz(model_path="arm_wt_rot_scap.bioMod")
+# b.load_movement(X_est[:biorbd_model.nbQ(), :])
+# b.exec()
 
 
 

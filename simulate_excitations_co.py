@@ -64,7 +64,7 @@ def prepare_ocp(
     objective_functions.add(
         Objective.Mayer.TRACK_STATE,
         weight=100000,
-        target=np.tile(xT[:biorbd_model.nbQ()], (number_shooting_points + 1, 1)).T,
+        target=np.array([xT[:biorbd_model.nbQ()]]).T,
         states_idx=np.array(range(biorbd_model.nbQ()))
     )
     # Dynamics
@@ -126,7 +126,7 @@ if __name__ == "__main__":
     use_IPOPT = False
     use_BO = False
     use_CO = True
-    save_data = True
+    save_data = False
 
     excitations_max = [1] * biorbd_model.nbMuscleTotal()
     if use_CO is not True:

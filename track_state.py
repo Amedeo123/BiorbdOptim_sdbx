@@ -93,12 +93,12 @@ def prepare_ocp(
 
 if __name__ == "__main__":
     save_data = True
-    T = 4
-    Ns = 400
+    T = 8
+    Ns = 800
     motion = 'REACH2'
 
     biorbd_model = biorbd.Model("arm_wt_rot_scap.bioMod")
-    mat_content = sio.loadmat("solutions/state_to_track.mat")
+    mat_content = sio.loadmat(f"solutions/state_to_track_{T}phase.mat")
     states = mat_content['state']
     controls = mat_content['controls']
     q_ref = states[:biorbd_model.nbQ(), :]
@@ -111,7 +111,7 @@ if __name__ == "__main__":
 
     tau_init = 0
     muscle_init = 0.5
-    use_CO = True
+    use_CO = False
 
     excitations_max = [1] * biorbd_model.nbMuscleTotal()
     if use_CO is not True:
