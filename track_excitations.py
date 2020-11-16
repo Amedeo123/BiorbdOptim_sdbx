@@ -25,29 +25,33 @@ from bioptim import (
 import os
 import scipy.io as sio
 
-def compute_err(Ns_mhe, X_est ,U_est, Ns, model, q, dq, tau, activations, excitations, nbGT):
+def compute_err(init_offset, Ns_mhe, X_est, U_est, Ns, model, q, dq, tau, activations, excitations, nbGT):
     model = model
     get_markers = markers_fun(model)
     err = dict()
     nbGT = nbGT
     Ns = Ns
-    norm_err = np.sqrt(Ns-Ns_mhe)
-    q_ref = q[:, :-Ns_mhe]
-    dq_ref = dq[:, :-Ns_mhe]
-    tau_ref = tau[:, :-Ns_mhe-1]
-    musces_ref = excitations[:, :-Ns_mhe-1]
+    norm_err_states = np.sqrt((Ns + 1) - Ns_mhe - init_offset)
+    norm_err_controls = np.sqrt(Ns - Ns_mhe - init_offset)
+    q_ref = q
+    dq_ref = dq
+    tau_ref = tau
+    muscles_ref = excitations
     if use_activation:
-        musces_ref = activations[:, :-Ns_mhe-1]
-    sol_mark = np.zeros((3, model.nbMarkers(), Ns+1-Ns_mhe))
-    sol_mark_ref = np.zeros((3, model.nbMarkers(), Ns+1-Ns_mhe))
-    err['q'] = np.linalg.norm(X_est[:model.nbQ(), :]-q_ref)/norm_err
-    err['q_dot'] = np.linalg.norm(X_est[model.nbQ():model.nbQ()*2, :]-dq_ref)/norm_err
-    err['tau'] = np.linalg.norm(U_est[:nbGT, :]-tau_ref)/norm_err
-    err['muscles'] = np.linalg.norm(U_est[nbGT:, :]-musces_ref)/norm_err
-    for i in range(Ns+1-Ns_mhe):
+        muscles_ref = activations
+    sol_mark = np.zeros((3, model.nbMarkers(), Ns + 1))
+    sol_mark_ref = np.zeros((3, model.nbMarkers(), Ns + 1))
+    err['q'] = np.linalg.norm(X_est[:model.nbQ(), init_offset:-Ns_mhe] - q_ref[:, init_offset:-Ns_mhe]) / norm_err_states
+    err['q_dot'] = np.linalg.norm(
+        X_est[model.nbQ():model.nbQ() * 2, init_offset:-Ns_mhe] - dq_ref[:, init_offset:-Ns_mhe]) / norm_err_states
+    err['tau'] = np.linalg.norm(U_est[:nbGT, init_offset:-Ns_mhe] - tau_ref[:, init_offset:-Ns_mhe]) / norm_err_states
+    err['muscles'] = np.linalg.norm(
+        U_est[nbGT:, init_offset:-Ns_mhe] - muscles_ref[:, init_offset:-Ns_mhe]) / norm_err_controls
+    for i in range(Ns + 1):
         sol_mark[:, :, i] = get_markers(X_est[:model.nbQ(), i])
         sol_mark_ref[:, :, i] = get_markers(q[:, i])
-    err['markers'] = np.linalg.norm(sol_mark - sol_mark_ref)/norm_err
+    err['markers'] = np.linalg.norm(
+        sol_mark[:, :, init_offset:-Ns_mhe] - sol_mark_ref[:, :, init_offset:-Ns_mhe]) / norm_err_states
     return err
 
 
@@ -136,11 +140,20 @@ if __name__ == "__main__":
     use_activation = True
     use_torque = False
     use_ACADOS = True
-    use_bash = True
+    use_bash = False
     save_stats = True
+    if use_activation:
+        use_N_elec = True
+    else:
+        use_N_elec = False
 
-    T = 0.8
-    Ns = 100
+    N_elec = 2
+    T_elec = 0.02
+    T = 8
+    Ns = 800
+    # if use_N_elec:
+    #     Ns = Ns - N_elec
+
     motion = 'REACH2'
     i = '0'
     biorbd_model = biorbd.Model("arm_wt_rot_scap.bioMod")
@@ -150,10 +163,10 @@ if __name__ == "__main__":
         data = pickle.load(file)
     states = data['data'][0]
     controls = data['data'][1]
-    q_sol = states['q']
-    dq_sol = states['q_dot']
-    a_sol = states['muscles']
-    u_sol = controls['muscles']
+    q_ref = states['q']
+    dq_ref = states['q_dot']
+    a_ref = states['muscles']
+    u_ref = controls['muscles']
     if use_torque:
         nbGT = biorbd_model.nbGeneralizedTorque()
     else:
@@ -166,20 +179,37 @@ if __name__ == "__main__":
     else:
         tau = np.zeros((nbGT, Ns+1))
     if use_activation:
-        x0 = np.hstack([q_sol[:, 0], dq_sol[:, 0]])
+        x0 = np.hstack([q_ref[:, 0], dq_ref[:, 0]])
     else:
-        x0 = np.hstack([q_sol[:, 0], dq_sol[:, 0], a_sol[:, 0]])
+        x0 = np.hstack([q_ref[:, 0], dq_ref[:, 0], a_ref[:, 0]])
     tau_init = 0
     muscle_init = 0.5
-
 
     # get targets
     get_markers = markers_fun(biorbd_model)
     markers_target = np.zeros((3, biorbd_model.nbMarkers(), Ns+1))
     for i in range(Ns+1):
-        markers_target[:, :, i] = get_markers(q_sol[:, i])
-    muscles_target = u_sol
+        markers_target[:, :, i] = get_markers(q_ref[:, i])
+    muscles_target = u_ref
 
+    muscles_target_real = np.ndarray((u_ref.shape[0], u_ref.shape[1]))
+    for i in range(N_elec, u_ref.shape[1]):
+        muscles_target_real[:, i] = u_ref[:, i-N_elec]
+    for i in range(N_elec):
+        muscles_target_real[:, i] = muscles_target_real[:, N_elec]
+
+    # plt.figure()
+    # plt.plot(muscles_target_real[:, :].T, 'x')
+    # plt.gca().set_prop_cycle(None)
+    # plt.plot(u_ref[:, :].T)
+    # plt.plot(a_ref[:, :].T, 'o')
+    # plt.legend(
+    #     labels=['Muscle excitation estimate', 'Muscle excitation truth'],
+    #     bbox_to_anchor=(1, 1),
+    #     loc='upper left', borderaxespad=0.
+    # )
+    # plt.tight_layout()
+    # plt.show()
     ocp = prepare_ocp(biorbd_model=biorbd_model, final_time=T, x0=x0, nbGT=nbGT,
                       number_shooting_points=Ns, use_torque=use_torque, use_activation=use_activation, use_SX=use_ACADOS)
 
@@ -194,9 +224,13 @@ if __name__ == "__main__":
     ocp.update_initial_guess(x_init, u_init)
 
     objectives = ObjectiveList()
-    objectives.add(Objective.Lagrange.TRACK_MUSCLES_CONTROL, weight=1000, target=muscles_target)
-    objectives.add(Objective.Lagrange.TRACK_MARKERS, weight=10000000, target=markers_target)
-    objectives.add(Objective.Lagrange.MINIMIZE_STATE, weight=10, states_idx=np.array(range(nbQ)))
+    if use_activation:
+        objectives.add(Objective.Lagrange.TRACK_MUSCLES_CONTROL, weight=10000, target=muscles_target_real[:, :-1])
+    else:
+        objectives.add(Objective.Lagrange.TRACK_MUSCLES_CONTROL, weight=1000, target=muscles_target[:, :-1])
+
+    objectives.add(Objective.Lagrange.TRACK_MARKERS, weight=100000000, target=markers_target[:, :, :])
+    objectives.add(Objective.Lagrange.MINIMIZE_STATE, weight=1, states_idx=np.array(range(nbQ)))
     objectives.add(Objective.Lagrange.MINIMIZE_STATE, weight=10, states_idx=np.array(range(nbQ, nbQ * 2)))
     if use_activation is not True:
         objectives.add(
@@ -211,9 +245,9 @@ if __name__ == "__main__":
         sol = ocp.solve(solver=Solver.ACADOS,
                         show_online_optim=False,
                         solver_options={
-                            "nlp_solver_tol_comp": 1e-4,
-                            "nlp_solver_tol_eq": 1e-4,
-                            "nlp_solver_tol_stat": 1e-4,
+                            "nlp_solver_tol_comp": 1e-6,
+                            "nlp_solver_tol_eq": 1e-6,
+                            "nlp_solver_tol_stat": 1e-6,
                             "integrator_type": "IRK",
                             "nlp_solver_type": "SQP",
                             "sim_method_num_steps": 1,
@@ -226,9 +260,9 @@ if __name__ == "__main__":
             show_online_optim=False,
             solver_options={
                 "tol": 1e-4,
-                "dual_inf_tol": 1e-4,
-                "constr_viol_tol": 1e-4,
-                "compl_inf_tol": 1e-4,
+                "dual_inf_tol": 1e-6,
+                "constr_viol_tol": 1e-6,
+                "compl_inf_tol": 1e-6,
                 "linear_solver": "ma57",
                 "max_iter": 500,
                 "hessian_approximation": "exact",
@@ -238,64 +272,94 @@ if __name__ == "__main__":
     toc = time() - tic
     print(f"Total time to solve with ACADOS : {toc} s")
 
-    data_sol = Data.get_data(ocp, sol)
+    data_est = Data.get_data(ocp, sol)
     if use_activation:
-        X_est = np.vstack([data_sol[0]['q'], data_sol[0]['q_dot']])
+        X_est = np.vstack([data_est[0]['q'], data_est[0]['q_dot']])
     else:
-        X_est = np.vstack([data_sol[0]['q'], data_sol[0]['q_dot'], data_sol[0]['muscles']])
+        X_est = np.vstack([data_est[0]['q'], data_est[0]['q_dot'], data_est[0]['muscles']])
     if use_torque:
-        U_est = np.vstack([data_sol[1]['tau'], data_sol[1]['muscles']])
+        U_est = np.vstack([data_est[1]['tau'], data_est[1]['muscles']])
     else:
-        U_est = data_sol[1]['muscles']
-    err_offset = 30
-    err = compute_err(
-        err_offset,
-        X_est[:, :-err_offset], U_est[:, :-err_offset-1], Ns, biorbd_model, q_sol, dq_sol, tau, a_sol, u_sol, nbGT
-    )
-
+        U_est = data_est[1]['muscles']
+    err_offset = 10
+    init_offset = 15
+    if use_N_elec:
+        if use_activation:
+            err = compute_err(
+                init_offset,
+                err_offset,
+                X_est, U_est, Ns, biorbd_model, q_ref[:, :], dq_ref[:, :],
+                tau[:, :], a_ref[:, :], u_ref[:, :], nbGT
+            )
+    else:
+        err = compute_err(
+            init_offset,
+            err_offset,
+            X_est, U_est, Ns, biorbd_model, q_ref,
+            dq_ref,
+            tau, a_ref, u_ref, nbGT
+        )
     use_noise = False
     print(err)
-    err_tmp = np.array([[Ns, toc, err['q'], err['q_dot'], err['tau'], err['muscles'], err['markers']]])
-    if save_stats :
-        if os.path.isfile(f"solutions/stats_ac_activation_driven{use_activation}.mat"):
+    err_tmp = np.array([[Ns, 1, toc, toc, err['q'], err['q_dot'], err['tau'], err['muscles'], err['markers']]])
+    if save_stats:
+        if os.path.isfile(f"solutions/stats_rt_test_activation_driven{use_activation}.mat"):
             matcontent = sio.loadmat(
-                f"solutions/stats_ac_activation_driven{use_activation}.mat")
+                f"solutions/stats_rt_test_activation_driven{use_activation}.mat")
             err_mat = np.concatenate((matcontent['err_tries'], err_tmp))
             err_dic = {"err_tries": err_mat}
-            sio.savemat(f"solutions/stats_ac_activation_driven{use_activation}.mat", err_dic)
-
+            sio.savemat(f"solutions/stats_rt_test_activation_driven{use_activation}.mat", err_dic)
+        else:
+            RuntimeError(f"File 'solutions/stats_rt_test_activation_driven{use_activation}.mat' does not exist")
     plt.subplot(211)
     plt.plot(X_est[:biorbd_model.nbQ(), :].T, 'x')
     plt.gca().set_prop_cycle(None)
-    plt.plot(q_sol.T)
+    plt.plot(q_ref.T)
     plt.legend(labels=['Q estimate', 'Q truth'], bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=0.)
     plt.subplot(212)
-    plt.plot(X_est[biorbd_model.nbQ():, :].T, 'x')
+    plt.plot(X_est[biorbd_model.nbQ():biorbd_model.nbQ()*2, :].T, 'x')
     plt.gca().set_prop_cycle(None)
-    plt.plot(dq_sol.T)
+    plt.plot(dq_ref.T)
     plt.legend(labels=['Qdot estimate', 'Qdot truth'], bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=0.)
     # plt.tight_layout()
-
-    plt.figure()
-    if use_torque:
-        plt.subplot(211)
-        plt.plot(U_est[:nbGT, :].T, 'x', label='Tau estimate')
-        plt.gca().set_prop_cycle(None)
-        plt.plot(tau.T)
-        plt.legend(labels=['Tau estimate', 'Tau truth'], bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=0.)
-        plt.subplot(212)
-    plt.plot(U_est[nbGT:, :].T, 'x')
-    plt.gca().set_prop_cycle(None)
-    if use_activation:
-        plt.plot(a_sol.T)
-    else:
-        plt.plot(u_sol.T)
+    plt.figure('Muscles excitations')
+    for i in range(biorbd_model.nbMuscles()):
+        plt.subplot(4, 5, i + 1)
+        # if use_N_elec:
+        #     plt.plot(a_ref[i, :-N_elec].T)
+        #     plt.plot(u_ref[i, :-N_elec].T, '--')
+        # else:
+        plt.plot(a_ref[i, :].T)
+        plt.plot(u_ref[i, :].T, '--')
+        plt.plot(U_est[i, :].T, 'k:')
+        plt.title(biorbd_model.muscleNames()[i].to_string())
     plt.legend(
-        labels=['Muscle excitation estimate', 'Muscle excitation truth'],
-        bbox_to_anchor=(1, 1),
-        loc='upper left', borderaxespad=0.
+        labels=['a_ref', 'u_ref', 'a_est'], bbox_to_anchor=(1.05, 1), loc='upper left',
+        borderaxespad=0.
     )
-    plt.tight_layout()
+    # plt.figure('RMSE_activations')
+    # plt.figure()
+    # if use_torque:
+    #     plt.subplot(211)
+    #     plt.plot(U_est[:nbGT, :].T, 'x', label='Tau estimate')
+    #     plt.gca().set_prop_cycle(None)
+    #     plt.plot(tau.T)
+    #     plt.legend(labels=['Tau estimate', 'Tau truth'], bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=0.)
+    #     plt.subplot(212)
+    # plt.plot(U_est[nbGT:, :].T, 'x')
+    # plt.gca().set_prop_cycle(None)
+    # if use_activation:
+    #     plt.plot(a_ref[:, N_elec:].T)
+    #     plt.gca().set_prop_cycle(None)
+    #     plt.plot(u_ref[:, N_elec:].T, '--')
+    # else:
+    #     plt.plot(u_ref.T)
+    # plt.legend(
+    #     labels=['Muscle excitation estimate', 'Muscle excitation truth'],
+    #     bbox_to_anchor=(1, 1),
+    #     loc='upper left', borderaxespad=0.
+    # )
+    # plt.tight_layout()
     plt.show()
     # if use_activation:
     #     ocp.save_get_data(
