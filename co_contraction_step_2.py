@@ -45,23 +45,7 @@ def prepare_ocp(
 
     # Add objective functions
     objective_functions = ObjectiveList()
-    objective_functions.add(
-        Objective.Lagrange.MINIMIZE_STATE, weight=1, states_idx=np.array(range(biorbd_model.nbQ())))
-    objective_functions.add(Objective.Lagrange.MINIMIZE_STATE, weight=10,
-                            states_idx=np.array(range(biorbd_model.nbQ(), biorbd_model.nbQ() * 2)))
-    objective_functions.add(
-        Objective.Lagrange.MINIMIZE_STATE,
-        weight=10,
-        states_idx=np.array(range(biorbd_model.nbQ() * 2, biorbd_model.nbQ() * 2 + biorbd_model.nbMuscles()))
-    )
-    objective_functions.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=10)
 
-    objective_functions.add(
-        Objective.Mayer.TRACK_STATE,
-        weight=1000,
-        target=np.tile(xT[:biorbd_model.nbQ()], (number_shooting_points + 1, 1)).T,
-        states_idx=np.array(range(biorbd_model.nbQ()))
-    )
     # Dynamics
     dynamics = DynamicsTypeList()
     dynamics.add(DynamicsType.MUSCLE_EXCITATIONS_DRIVEN)
@@ -107,9 +91,9 @@ def prepare_ocp(
         nb_threads=nb_threads,
     )
 
-T = 0.8
-Ns = 100
-save_data = False
+T = 4
+Ns = 400
+save_data = True
 biorbd_model = biorbd.Model("arm_wt_rot_scap.bioMod")
 x0 = np.array([0., -0.2, 0, 0, 0, 0, 0, 0])
 xT = np.array([-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0])
@@ -123,9 +107,9 @@ controls = data['data'][1]
 q_ref = states['q']
 # muscle_idx_tot = [i for i in range(biorbd_model.nbMuscles())]
 ocp = prepare_ocp(biorbd_model=biorbd_model, final_time=T, number_shooting_points=Ns, x0=x0, xT=xT, use_SX=True)
-for i in range(1, 4):
+for co in range(1, 4):
     with open(
-            f"solutions/sim_ac_{int(T * 1000)}ms_{Ns}sn_REACH2_co_level_{i}_tmp.bob", 'rb'
+            f"solutions/sim_ac_{int(T * 1000)}ms_{Ns}sn_REACH2_co_level_{co}_tmp.bob", 'rb'
     ) as file:
         data = pickle.load(file)
     states = data['data'][0]
@@ -139,26 +123,26 @@ for i in range(1, 4):
 
     # Update Objectives
     objective_functions = ObjectiveList()
-    objective_functions.add(
-        Objective.Lagrange.MINIMIZE_STATE, weight=1, states_idx=np.array(range(biorbd_model.nbQ()))
-    )
+    # objective_functions.add(
+    #     Objective.Lagrange.MINIMIZE_STATE, weight=1, states_idx=np.array(range(biorbd_model.nbQ()))
+    # )
     objective_functions.add(Objective.Lagrange.MINIMIZE_STATE, weight=10,
                             states_idx=np.array(range(biorbd_model.nbQ(), biorbd_model.nbQ() * 2)))
     objective_functions.add(
         Objective.Lagrange.MINIMIZE_STATE,
-        weight=10,
+        weight=1,
         states_idx=np.array(
             range(biorbd_model.nbQ() * 2, biorbd_model.nbQ() * 2 + biorbd_model.nbMuscles()))
     )
     objective_functions.add(
         Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL,
-        weight=10,
+        weight=1,
         muscles_idx=np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 16])
     )
     objective_functions.add(
         Objective.Lagrange.TRACK_MUSCLES_CONTROL,
         weight=1000,
-        target=u_co,
+        target=u_co[[9, 10, 17, 18], :-1],
         muscles_idx=np.array([9, 10, 17, 18]),
     )
     objective_functions.add(
@@ -173,7 +157,7 @@ for i in range(1, 4):
         solver=Solver.ACADOS,
         show_online_optim=False,
         solver_options={
-            "nlp_solver_max_iter": 50,
+            "nlp_solver_max_iter": 100,
             "nlp_solver_tol_comp": 1e-4,
             "nlp_solver_tol_eq": 1e-4,
             "nlp_solver_tol_stat": 1e-4,
@@ -201,5 +185,5 @@ for i in range(1, 4):
     # plt.show()
     if save_data:
         ocp.save_get_data(
-            sol, f"solutions/sim_ac_{int(T * 1000)}ms_{Ns}sn_REACH2_co_level_{i}.bob"
+            sol, f"solutions/sim_ac_{int(T * 1000)}ms_{Ns}sn_REACH2_co_level_{co}.bob"
         )

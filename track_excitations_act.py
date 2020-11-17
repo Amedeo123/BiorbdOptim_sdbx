@@ -137,7 +137,7 @@ def prepare_ocp(
 
 
 if __name__ == "__main__":
-    use_activation = False
+    use_activation = True
     use_torque = False
     use_ACADOS = True
     use_bash = False

@@ -3,6 +3,7 @@ from time import time
 import numpy as np
 from casadi import MX, Function
 import bioviz
+import scipy.io as sio
 import pickle
 import os.path
 import matplotlib.pyplot as plt
@@ -23,6 +24,7 @@ from bioptim import (
     Bounds,
     BoundsOption,
     Instant,
+    Simulate,
     Data
 )
 
@@ -70,10 +72,12 @@ def prepare_ocp(
     )
     objective_functions.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=10)
 
+    # objective_functions.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL_DERIVATIVE, weight=100)
+
     objective_functions.add(
         Objective.Mayer.TRACK_STATE,
         weight=100000,
-        target=np.tile(xT[:biorbd_model.nbQ()*2], (number_shooting_points + 1, 1)).T,
+        target=np.array([xT[:biorbd_model.nbQ()*2]]).T,
         states_idx=np.array(range(biorbd_model.nbQ()*2))
     )
     # Dynamics
@@ -126,14 +130,37 @@ if __name__ == "__main__":
     Ns = 100
     co_value = []
     motion = 'REACH2'
-    x_phase = np.array([[-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
-                        [0., -0.2, 0, 0, 0, 0, 0, 0],
+    x_phase = np.array([[-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
                         [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
-                        [0., -0.2, 0, 0, 0, 0, 0, 0],
+                        [-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
                         [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
-                        [0., -0.2, 0, 0, 0, 0, 0, 0],
-                        [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0]])
-    nb_phase = 4
+                        [-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
+                        [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
+                        [-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
+                        [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
+                        [-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
+                        [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
+                        ])
+
+    # x_phase = np.array([[-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
+    #                     [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
+    #                     [0.89, -0.5, -0.5, 0.8, 0, 0, 0, 0],
+    #                     [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
+    #                     [-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
+    #                     [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
+    #                     [0.89, -0.5, -0.5, 0.8, 0, 0, 0, 0],
+    #                     [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
+    #                     [-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
+    #                     [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
+    #                     [0.89, -0.5, -0.5, 0.8, 0, 0, 0, 0],
+    #                     [-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
+    #                     [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
+    #                     [0.89, -0.5, -0.5, 0.8, 0, 0, 0, 0],
+    #                     [-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
+    #                     [-0.2, -1.3, -0.5, 0.5, 0, 0, 0, 0],
+    #                     [-0.1, -0.3, -0.1, 0.1, 0, 0, 0, 0],
+    #                     ])
+    nb_phase = 8
     X_est = np.zeros((biorbd_model.nbQ()*2+biorbd_model.nbMuscleTotal(), nb_phase*Ns+1))
     U_est = np.zeros((biorbd_model.nbMuscleTotal(), nb_phase*Ns))
     use_ACADOS = True
@@ -188,14 +215,15 @@ if __name__ == "__main__":
         ocp.update_bounds(x_bounds=x_bounds, u_bounds=u_bounds)
 
         for phase in range(1, nb_phase+1):
+            # sol = ocp.solve(solver=Solver.IPOPT)
             sol = ocp.solve(
                 solver=Solver.ACADOS,
                 show_online_optim=False,
                 solver_options={
                     "nlp_solver_max_iter": 100,
-                    "nlp_solver_tol_comp": 1e-4,
-                    "nlp_solver_tol_eq": 1e-4,
-                    "nlp_solver_tol_stat": 1e-4,
+                    "nlp_solver_tol_comp": 1e-7,
+                    "nlp_solver_tol_eq": 1e-7,
+                    "nlp_solver_tol_stat": 1e-7,
                     "integrator_type": "IRK",
                     "nlp_solver_type": "SQP",
                     "sim_method_num_steps": 1,
@@ -228,10 +256,12 @@ if __name__ == "__main__":
 
             objectives.add(
                 Objective.Mayer.TRACK_STATE,
-                weight=1000000,
-                target=np.tile(x_phase[phase+1, :biorbd_model.nbQ()*2], (Ns + 1, 1)).T,
+                weight=10000,
+                target=np.array([x_phase[phase+1, :biorbd_model.nbQ()*2]]).T,
                 states_idx=np.array(range(biorbd_model.nbQ()*2))
             )
+
+            # objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL_DERIVATIVE, weight=100)
             print(x_phase[phase+1, :biorbd_model.nbQ()])
             ocp.update_objectives(objectives)
 
@@ -239,6 +269,9 @@ if __name__ == "__main__":
             U_est[:, (phase - 1) * Ns:phase * Ns] = u_out
 # Collect last state
 X_est[:, -1] = x0
+
+dic = {'state': X_est, 'controls': U_est}
+sio.savemat(f"solutions/state_to_track_{phase}phase.mat", dic)
 
 plt.subplot(211)
 for est, name in zip(X_est[:biorbd_model.nbQ(), :], biorbd_model.nameDof()):
@@ -251,7 +284,6 @@ for est, name in zip(X_est[biorbd_model.nbQ():biorbd_model.nbQ() * 2, :], biorbd
 plt.legend()
 plt.tight_layout()
 
-
 plt.figure('Muscles excitations')
 for i in range(biorbd_model.nbMuscles()):
     plt.subplot(4, 5, i + 1)
@@ -259,10 +291,12 @@ for i in range(biorbd_model.nbMuscles()):
     plt.title(biorbd_model.muscleNames()[i].to_string())
 plt.legend(labels=['u_est'], bbox_to_anchor=(1.05, 1), loc='upper left',
            borderaxespad=0.)
-
-
-
-plt.show()
 print()
+plt.show()
+
+# b = bioviz.Viz(model_path="arm_wt_rot_scap.bioMod")
+# b.load_movement(X_est[:biorbd_model.nbQ(), :])
+# b.exec()
+
 
 

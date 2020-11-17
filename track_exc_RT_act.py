@@ -24,33 +24,37 @@ from bioptim import (
     Bounds,
 )
 
+
 def compute_err(init_offset, Ns_mhe, ratio, X_est, U_est, Ns, model, q, dq, tau, activations, excitations, nbGT):
     model = model
     get_markers = markers_fun(model)
     err = dict()
     nbGT = nbGT
     Ns = Ns
-    norm_err_states = np.sqrt(ceil((Ns + 1) / ratio) - Ns_mhe - init_offset)
+    norm_err_states = np.sqrt(((Ns + 1) / ratio) - Ns_mhe - init_offset)
     norm_err_controls = np.sqrt(ceil(Ns / ratio) - Ns_mhe - init_offset)
-    q_ref = q[:, 0:Ns+1:ratio]
-    dq_ref = dq[:, 0:Ns+1:ratio]
+    q_ref = q[:, 0:Ns + 1:ratio]
+    dq_ref = dq[:, 0:Ns + 1:ratio]
     tau_ref = tau[:, 0:Ns:ratio]
     muscles_ref = excitations[:, 0:Ns:ratio]
     if use_activation:
         muscles_ref = activations[:, 0:Ns:ratio]
-    sol_mark = np.zeros((3, model.nbMarkers(), ceil((Ns+1)/ratio)-Ns_mhe))
-    sol_mark_ref = np.zeros((3, model.nbMarkers(), ceil((Ns+1)/ratio)-Ns_mhe))
-    err['q'] = np.linalg.norm(X_est[:model.nbQ(), init_offset:]-q_ref[:, init_offset:-Ns_mhe])/norm_err_states
-    err['q_dot'] = np.linalg.norm(X_est[model.nbQ():model.nbQ() * 2, init_offset:]-dq_ref[:, init_offset:-Ns_mhe])/norm_err_states
-    err['tau'] = np.linalg.norm(U_est[:nbGT, init_offset:]-tau_ref[:, init_offset:-Ns_mhe])/norm_err_states
-    err['muscles'] = np.linalg.norm(U_est[nbGT:, init_offset:]-muscles_ref[:, init_offset:-Ns_mhe])/norm_err_controls
-    for i in range(ceil((Ns+1)/ratio)-Ns_mhe):
+    sol_mark = np.zeros((3, model.nbMarkers(), ceil((Ns + 1) / ratio) - Ns_mhe))
+    sol_mark_ref = np.zeros((3, model.nbMarkers(), ceil((Ns + 1) / ratio) - Ns_mhe))
+    err['q'] = np.linalg.norm(X_est[:model.nbQ(), init_offset:] - q_ref[:, init_offset:-Ns_mhe]) / norm_err_states
+    err['q_dot'] = np.linalg.norm(
+        X_est[model.nbQ():model.nbQ() * 2, init_offset:] - dq_ref[:, init_offset:-Ns_mhe]) / norm_err_states
+    err['tau'] = np.linalg.norm(U_est[:nbGT, init_offset:] - tau_ref[:, init_offset:-Ns_mhe]) / norm_err_states
+    err['muscles'] = np.linalg.norm(
+        U_est[nbGT:, init_offset:] - muscles_ref[:, init_offset:-Ns_mhe]) / norm_err_controls
+    for i in range(ceil((Ns + 1) / ratio) - Ns_mhe):
         sol_mark[:, :, i] = get_markers(X_est[:model.nbQ(), i])
-    sol_mark_tmp = np.zeros((3, sol_mark_ref.shape[1], Ns+1))
-    for i in range(Ns+1):
+    sol_mark_tmp = np.zeros((3, sol_mark_ref.shape[1], Ns + 1))
+    for i in range(Ns + 1):
         sol_mark_tmp[:, :, i] = get_markers(q[:, i])
-    sol_mark_ref = sol_mark_tmp[:, :, 0:Ns+1:ratio]
-    err['markers'] = np.linalg.norm(sol_mark[:, :, init_offset:] - sol_mark_ref[:, :, init_offset:-Ns_mhe])/norm_err_states
+    sol_mark_ref = sol_mark_tmp[:, :, 0:Ns + 1:ratio]
+    err['markers'] = np.linalg.norm(
+        sol_mark[:, :, init_offset:] - sol_mark_ref[:, :, init_offset:-Ns_mhe]) / norm_err_states
     return err
 
 
@@ -83,6 +87,7 @@ def markers_fun(biorbd_model):
     qMX = MX.sym('qMX', biorbd_model.nbQ())
     return Function('markers', [qMX], [biorbd_model.markers(qMX)])
 
+
 def get_MHE_time_lenght(Ns_mhe, use_activation=False):
     # Nmhe>2
     # To be adjusted to guarantee real-time
@@ -95,7 +100,8 @@ def get_MHE_time_lenght(Ns_mhe, use_activation=False):
                         0.056,  # 1 sample on 7
                         0.064, 0.064,  # 1 sample on 8
                         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-    return times_lenght[Ns_mhe-2]
+    return times_lenght[Ns_mhe - 2]
+
 
 def prepare_ocp(
         biorbd_model,
@@ -149,10 +155,10 @@ def prepare_ocp(
     )
 
     # Initial guesses
-    x_init = InitialGuessOption(np.tile(x0, (number_shooting_points+1, 1)).T,
+    x_init = InitialGuessOption(np.tile(x0, (number_shooting_points + 1, 1)).T,
                                 interpolation=InterpolationType.EACH_FRAME)
 
-    u0 = np.array([tau_init] * nbGT + [muscle_init] * nbMT)+0.1
+    u0 = np.array([tau_init] * nbGT + [muscle_init] * nbMT) + 0.1
     u_init = InitialGuessOption(np.tile(u0, (number_shooting_points, 1)).T,
                                 interpolation=InterpolationType.EACH_FRAME)
     # ------------- #
@@ -176,16 +182,15 @@ if __name__ == "__main__":
     # Configuration of the problem
     biorbd_model = biorbd.Model("arm_wt_rot_scap.bioMod")
     use_torque = False
-    use_activation = False
+    use_activation = True
     use_ACADOS = True
     WRITE_STATS = True
     save_results = False
     TRACK_EMG = True
     use_noise = False
     use_co = False
-    use_bash = False
+    use_bash = True
     use_try = False
-    use_N_elec = False
     if use_activation:
         use_N_elec = True
     # Variable of the problem
@@ -208,14 +213,19 @@ if __name__ == "__main__":
                         7, 7, 7, 7,
                         8, 8, 8]
     else:
-        rt_ratio_tot = [2, 2, 2, 2, 2, 2,
-                        3, 3, 3, 3, 3, 3,
-                        4, 4, 4, 4, 4, 4, 4,
-                        5, 5, 5, 5,
-                        6, 6, 6, 6, 6, 6, 6]
+        rt_ratio_tot = [2, 2,
+                        3, 3, 3, 3,
+                        4, 4,
+                        5, 5, 5, 5, 5, 5,
+                        7, 7, 7, 7,
+                        8, 8, 8]
+        # rt_ratio_tot = [2, 2, 2, 2, 2, 2,
+        #                 3, 3, 3, 3, 3, 3,
+        #                 4, 4, 4, 4, 4, 4, 4,
+        #                 5, 5, 5, 5,
+        #                 6, 6, 6, 6, 6, 6, 6]
 
-    # rt_ratio = rt_ratio_tot[Ns_mhe-2]
-    rt_ratio = 2
+    rt_ratio = rt_ratio_tot[Ns_mhe - 2]
     T_mhe = T / (Ns / rt_ratio) * Ns_mhe
     # T_mhe = 0.12
     if use_try:
@@ -232,9 +242,9 @@ if __name__ == "__main__":
     else:
         nbGT = 0
     if use_activation:
-        x_ref = np.zeros((biorbd_model.nbQ()*2))
+        x_ref = np.zeros((biorbd_model.nbQ() * 2))
     else:
-        x_ref = np.zeros((biorbd_model.nbQ()*2 + biorbd_model.nbMuscles()))
+        x_ref = np.zeros((biorbd_model.nbQ() * 2 + biorbd_model.nbMuscles()))
 
     # Define noise
     if use_noise:
@@ -246,10 +256,10 @@ if __name__ == "__main__":
 
     # define x_est u_est size
     if use_activation:
-        X_est = np.zeros((biorbd_model.nbQ() * 2, ceil((Ns+1)/rt_ratio) - Ns_mhe))
+        X_est = np.zeros((biorbd_model.nbQ() * 2, ceil((Ns + 1) / rt_ratio) - Ns_mhe))
     else:
-        X_est = np.zeros((biorbd_model.nbQ() * 2 + biorbd_model.nbMuscles(), ceil((Ns+1)/rt_ratio) - Ns_mhe))
-    U_est = np.zeros((nbGT + biorbd_model.nbMuscleTotal(), ceil(Ns/rt_ratio) - Ns_mhe))
+        X_est = np.zeros((biorbd_model.nbQ() * 2 + biorbd_model.nbMuscles(), ceil((Ns + 1) / rt_ratio) - Ns_mhe))
+    U_est = np.zeros((nbGT + biorbd_model.nbMuscleTotal(), ceil(Ns / rt_ratio) - Ns_mhe))
 
     # Set number of co-contraction level
     nb_co_lvl = 1
@@ -295,9 +305,9 @@ if __name__ == "__main__":
 
         # Loop for marker and EMG noise
         for marker_lvl in range(len(marker_noise_lvl)):
-        # for marker_lvl in range(3, 4):
+            # for marker_lvl in range(3, 4):
             for EMG_lvl in range(len(EMG_noise_lvl)):
-            # for EMG_lvl in range(0):
+                # for EMG_lvl in range(0):
                 get_markers = markers_fun(biorbd_model)
                 markers_target = np.zeros((3, biorbd_model.nbMarkers(), Ns + 1))
                 for i in range(Ns + 1):
@@ -313,8 +323,8 @@ if __name__ == "__main__":
 
                 X_est_tries = np.ndarray((nb_try, X_est.shape[0], X_est.shape[1]))
                 U_est_tries = np.ndarray((nb_try, U_est.shape[0], U_est.shape[1]))
-                markers_target_tries = np.ndarray((nb_try, markers_target.shape[0], markers_target.shape[1], Ns+1))
-                muscles_target_tries = np.ndarray((nb_try, muscles_target.shape[0], Ns+1))
+                markers_target_tries = np.ndarray((nb_try, markers_target.shape[0], markers_target.shape[1], Ns + 1))
+                muscles_target_tries = np.ndarray((nb_try, muscles_target.shape[0], Ns + 1))
                 if use_activation:
                     x_ref = np.concatenate((q_ref, dq_ref))
                 else:
@@ -325,7 +335,8 @@ if __name__ == "__main__":
                 T_mhe_tries = []
                 T_tot_tries = []
                 for tries in range(nb_try):
-                    print(f"--- Ns_mhe = {Ns_mhe}; Co_lvl: {co}; Marker_noise: {marker_lvl}; EMG_noise : {EMG_lvl}; nb_try : {tries} ---")
+                    print(
+                        f"--- Ns_mhe = {Ns_mhe}; Co_lvl: {co}; Marker_noise: {marker_lvl}; EMG_noise : {EMG_lvl}; nb_try : {tries} ---")
 
                     # Generate data with noise
                     if use_noise:
@@ -348,10 +359,10 @@ if __name__ == "__main__":
 
                     # set initial guess on state
                     x_init = InitialGuessOption(
-                        x_ref[:, 0:rt_ratio*(Ns_mhe + 1):rt_ratio], interpolation=InterpolationType.EACH_FRAME)
+                        x_ref[:, 0:rt_ratio * (Ns_mhe + 1):rt_ratio], interpolation=InterpolationType.EACH_FRAME)
                     u0 = muscles_target
                     u_init = InitialGuessOption(
-                        u0[:, 0:rt_ratio*(Ns_mhe):rt_ratio], interpolation=InterpolationType.EACH_FRAME)
+                        u0[:, 0:rt_ratio * (Ns_mhe):rt_ratio], interpolation=InterpolationType.EACH_FRAME)
                     ocp.update_initial_guess(x_init, u_init)
 
                     # Update objectives functions
@@ -359,13 +370,13 @@ if __name__ == "__main__":
                         w_marker = 100000000
                         w_control = 10000
                     else:
-                        w_marker = 100000000
+                        w_marker = 10000000
                         w_control = 100000
                     objectives = ObjectiveList()
                     if TRACK_EMG:
                         w_torque = 10
                         objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=w_control,
-                                       target=muscles_target[:, 0:Ns_mhe*rt_ratio:rt_ratio],
+                                       target=muscles_target[:, 0:Ns_mhe * rt_ratio:rt_ratio],
                                        )
                         if use_torque:
                             objectives.add(Objective.Lagrange.MINIMIZE_TORQUE, weight=w_torque)
@@ -379,7 +390,7 @@ if __name__ == "__main__":
 
                     objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=10)
                     objectives.add(Objective.Lagrange.MINIMIZE_MARKERS, weight=w_marker,
-                                   target=markers_target[:, :, 0:(Ns_mhe+1)*rt_ratio:rt_ratio])
+                                   target=markers_target[:, :, 0:(Ns_mhe + 1) * rt_ratio:rt_ratio])
                     objectives.add(
                         Objective.Lagrange.MINIMIZE_STATE, weight=10, states_idx=np.array(range(biorbd_model.nbQ())))
                     objectives.add(Objective.Lagrange.MINIMIZE_STATE, weight=10,
@@ -417,8 +428,7 @@ if __name__ == "__main__":
                     U_est[:, 0] = u_out
                     tic = time()
                     cnt = 0
-                    for iter in range(1, ceil((Ns+1)/rt_ratio-Ns_mhe)):
-                        print(iter)
+                    for iter in range(1, ceil((Ns + 1) / rt_ratio - Ns_mhe)):
                         cnt += 1
                         # set initial state
                         ocp.nlp[0].x_bounds.min[:, 0] = x0[:, 0]
@@ -437,7 +447,8 @@ if __name__ == "__main__":
                             w_torque = 10
                             w_state = 10
                             objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=w_control,
-                                           target=muscles_target[:, iter*rt_ratio:(Ns_mhe+iter)*rt_ratio:rt_ratio],
+                                           target=muscles_target[:,
+                                                  iter * rt_ratio:(Ns_mhe + iter) * rt_ratio:rt_ratio],
                                            )
                             if use_torque:
                                 objectives.add(Objective.Lagrange.MINIMIZE_TORQUE, weight=w_torque)
@@ -449,7 +460,8 @@ if __name__ == "__main__":
 
                         objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=10)
                         objectives.add(Objective.Lagrange.MINIMIZE_MARKERS, weight=w_marker,
-                                       target=markers_target[:, :, iter*rt_ratio:(Ns_mhe+iter+1)*rt_ratio:rt_ratio])
+                                       target=markers_target[:, :,
+                                              iter * rt_ratio:(Ns_mhe + iter + 1) * rt_ratio:rt_ratio])
                         objectives.add(
                             Objective.Lagrange.MINIMIZE_STATE, weight=1, states_idx=np.array(range(biorbd_model.nbQ())))
                         objectives.add(Objective.Lagrange.MINIMIZE_STATE, weight=10,
@@ -475,7 +487,7 @@ if __name__ == "__main__":
                                         })
                         x0, u0, x_out, u_out = warm_start_mhe(ocp, sol)
                         X_est[:, iter] = x_out
-                        if iter < ceil(Ns/rt_ratio)-Ns_mhe:
+                        if iter < ceil(Ns / rt_ratio) - Ns_mhe:
                             U_est[:, iter] = u_out
                         if sol['status'] != 0:
                             if TRACK_EMG:
@@ -492,7 +504,7 @@ if __name__ == "__main__":
                     muscles_target_tries[tries, :, :] = muscles_target
                     print(f"nb loops: {cnt}")
                     print(f"Total time to solve with ACADOS : {toc} s")
-                    print(f"Time per MHE iter. : {toc/iter} s")
+                    print(f"Time per MHE iter. : {toc / iter} s")
                     err_offset = Ns_mhe
                     init_offset = 15
                     err = compute_err(
@@ -502,7 +514,7 @@ if __name__ == "__main__":
                         X_est,
                         U_est, Ns, biorbd_model, q_ref, dq_ref, tau, a_ref, u_ref, nbGT)
 
-                    err_tmp = [Ns_mhe, rt_ratio, toc, toc/iter, err['q'], err['q_dot'], err['tau'], err['muscles'],
+                    err_tmp = [Ns_mhe, rt_ratio, toc, toc / iter, err['q'], err['q_dot'], err['tau'], err['muscles'],
                                err['markers']]
                     err_tries[tries, :] = err_tmp
                     print(err)
@@ -550,7 +562,7 @@ if __name__ == "__main__":
                     # plt.legend(labels=['u_est', 'u_init', 'u_with_noise'], bbox_to_anchor=(1.05, 1), loc='upper left',
                     #            borderaxespad=0.)
                     # # plt.tight_layout()
-
+                    #
                     # n_mark = biorbd_model.nbMarkers()
                     # get_markers = markers_fun(biorbd_model)
                     #
@@ -582,13 +594,13 @@ if __name__ == "__main__":
                 # T_tot = sum(T_tot_tries) / nb_try
                 err_dic = {"err_tries": err_tries}
                 if WRITE_STATS:
-                    if os.path.isfile(f"solutions/stats_rt_activation_driven{use_activation}.mat"):
-                        matcontent = sio.loadmat(f"solutions/stats_rt_activation_driven{use_activation}.mat")
+                    if os.path.isfile(f"solutions/stats_rt_test_activation_driven{use_activation}.mat"):
+                        matcontent = sio.loadmat(f"solutions/stats_rt_test_activation_driven{use_activation}.mat")
                         err_mat = np.concatenate((matcontent['err_tries'], err_tries))
                         err_dic = {"err_tries": err_mat}
-                        sio.savemat(f"solutions/stats_rt_activation_driven{use_activation}.mat", err_dic)
+                        sio.savemat(f"solutions/stats_rt_test_activation_driven{use_activation}.mat", err_dic)
                     else:
-                        sio.savemat(f"solutions/stats_rt_activation_driven{use_activation}.mat", err_dic)
+                        sio.savemat(f"solutions/stats_rt_test_activation_driven{use_activation}.mat", err_dic)
 
                 # Save results for all tries
                 if save_results:
@@ -599,7 +611,7 @@ if __name__ == "__main__":
                         "u_sol": u_ref,
                         "markers_target": markers_target_tries,
                         "u_target": muscles_target_tries,
-                        "time_per_mhe": toc/(iter),
+                        "time_per_mhe": toc / (iter),
                         "time_tot": toc,
                         "co_lvl": co,
                         "marker_noise_lvl": marker_noise_lvl[marker_lvl],
