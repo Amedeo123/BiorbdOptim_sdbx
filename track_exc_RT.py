@@ -1,7 +1,7 @@
 import biorbd
 from time import time
 import numpy as np
-from casadi import MX, Function
+from casadi import MX, Function, horzcat
 from math import *
 import matplotlib.pyplot as plt
 import pickle
@@ -9,6 +9,8 @@ import scipy.io as sio
 import sys
 from generate_data_noise_funct import generate_noise
 import os
+from utils import *
+
 from bioptim import (
     OptimalControlProgram,
     ObjectiveList,
@@ -23,79 +25,6 @@ from bioptim import (
     InterpolationType,
     Bounds,
 )
-
-def compute_err(init_offset, Ns_mhe, ratio, X_est, U_est, Ns, model, q, dq, tau, activations, excitations, nbGT):
-    model = model
-    get_markers = markers_fun(model)
-    err = dict()
-    nbGT = nbGT
-    Ns = Ns
-    norm_err_states = np.sqrt(ceil((Ns + 1) / ratio) - Ns_mhe - init_offset)
-    norm_err_controls = np.sqrt(ceil(Ns / ratio) - Ns_mhe - init_offset)
-    q_ref = q[:, 0:Ns+1:ratio]
-    dq_ref = dq[:, 0:Ns+1:ratio]
-    tau_ref = tau[:, 0:Ns:ratio]
-    muscles_ref = excitations[:, 0:Ns:ratio]
-    if use_activation:
-        muscles_ref = activations[:, 0:Ns:ratio]
-    sol_mark = np.zeros((3, model.nbMarkers(), ceil((Ns+1)/ratio)-Ns_mhe))
-    sol_mark_ref = np.zeros((3, model.nbMarkers(), ceil((Ns+1)/ratio)-Ns_mhe))
-    err['q'] = np.linalg.norm(X_est[:model.nbQ(), init_offset:]-q_ref[:, init_offset:-Ns_mhe])/norm_err_states
-    err['q_dot'] = np.linalg.norm(X_est[model.nbQ():model.nbQ() * 2, init_offset:]-dq_ref[:, init_offset:-Ns_mhe])/norm_err_states
-    err['tau'] = np.linalg.norm(U_est[:nbGT, init_offset:]-tau_ref[:, init_offset:-Ns_mhe])/norm_err_states
-    err['muscles'] = np.linalg.norm(U_est[nbGT:, init_offset:]-muscles_ref[:, init_offset:-Ns_mhe])/norm_err_controls
-    for i in range(ceil((Ns+1)/ratio)-Ns_mhe):
-        sol_mark[:, :, i] = get_markers(X_est[:model.nbQ(), i])
-    sol_mark_tmp = np.zeros((3, sol_mark_ref.shape[1], Ns+1))
-    for i in range(Ns+1):
-        sol_mark_tmp[:, :, i] = get_markers(q[:, i])
-    sol_mark_ref = sol_mark_tmp[:, :, 0:Ns+1:ratio]
-    err['markers'] = np.linalg.norm(sol_mark[:, :, init_offset:] - sol_mark_ref[:, :, init_offset:-Ns_mhe])/norm_err_states
-    return err
-
-
-def warm_start_mhe(ocp, sol):
-    data = Data.get_data(ocp, sol)
-    q = data[0]["q"]
-    dq = data[0]["q_dot"]
-    tau = []
-    if use_activation:
-        act = data[1]["muscles"]
-        x = np.vstack([q, dq])
-        u = act
-    else:
-        act = data[0]["muscles"]
-        exc = data[1]["muscles"]
-        x = np.vstack([q, dq, act])
-        u = exc
-    w_tau = 'tau' in data[1].keys()
-    if w_tau:
-        tau = data[1]["tau"]
-        u = np.vstack([tau, act])
-    x0 = np.hstack((x[:, 1:], np.tile(x[:, [-1]], 1)))  # discard oldest estimate of the window, duplicates youngest
-    u0 = u[:, 1:]  # discard oldest estimate of the window
-    x_out = x[:, 0]
-    u_out = u[:, 0]
-    return x0, u0, x_out, u_out
-
-
-def markers_fun(biorbd_model):
-    qMX = MX.sym('qMX', biorbd_model.nbQ())
-    return Function('markers', [qMX], [biorbd_model.markers(qMX)])
-
-def get_MHE_time_lenght(Ns_mhe, use_activation=False):
-    # Nmhe>2
-    # To be adjusted to guarantee real-time
-    # Based on frequencies extracted from Fig.1
-    if use_activation is not True:
-        times_lenght = [0.024, 0.024, 0.024, 0.024,  # 1 sample on 3
-                        0.032, 0.032,  # 1 sample on 4
-                        0.04, 0.044,  # 1 sample on 5
-                        0.048, 0.048, 0.048, 0.048, 0.048, 0.048,  # 1 sample on 6
-                        0.056,  # 1 sample on 7
-                        0.064, 0.064,  # 1 sample on 8
-                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-    return times_lenght[Ns_mhe-2]
 
 def prepare_ocp(
         biorbd_model,
@@ -183,7 +112,7 @@ if __name__ == "__main__":
     TRACK_EMG = True
     use_noise = False
     use_co = False
-    use_bash = False
+    use_bash = True
     use_try = False
     use_N_elec = False
     if use_activation:
@@ -195,7 +124,7 @@ if __name__ == "__main__":
     N_elec = int(T_elec * Ns / T)
     # if use_N_elec:
     #     Ns = Ns-N_elec
-    Ns_mhe = 2
+    Ns_mhe = 4
     if use_bash:
         Ns_mhe = int(sys.argv[1])
     # T_mhe = get_MHE_time_lenght(Ns_mhe)
@@ -214,8 +143,8 @@ if __name__ == "__main__":
                         5, 5, 5, 5,
                         6, 6, 6, 6, 6, 6, 6]
 
-    # rt_ratio = rt_ratio_tot[Ns_mhe-2]
-    rt_ratio = 2
+    rt_ratio = rt_ratio_tot[Ns_mhe-2]
+    # rt_ratio = 2
     T_mhe = T / (Ns / rt_ratio) * Ns_mhe
     # T_mhe = 0.12
     if use_try:
@@ -402,6 +331,8 @@ if __name__ == "__main__":
                                         "integrator_type": "IRK",
                                         "nlp_solver_type": "SQP",
                                         "sim_method_num_steps": 1,
+                                        "print_level": 0,
+                                        "nlp_solver_max_iter": 15,
                                     })
                     if sol['status'] != 0:
                         if TRACK_EMG:
@@ -412,14 +343,12 @@ if __name__ == "__main__":
                         f.write(f"{Ns_mhe}; {co}; {marker_lvl}; {EMG_lvl}; {tries}; "
                                 f"'init'\n")
                         f.close()
-                    x0, u0, x_out, u_out = warm_start_mhe(ocp, sol)
+                    x0, u0, x_out, u_out = warm_start_mhe(ocp, sol, use_activation=use_activation)
                     X_est[:, 0] = x_out
                     U_est[:, 0] = u_out
                     tic = time()
-                    cnt = 0
                     for iter in range(1, ceil((Ns+1)/rt_ratio-Ns_mhe)):
-                        print(iter)
-                        cnt += 1
+                        # print(iter)
                         # set initial state
                         ocp.nlp[0].x_bounds.min[:, 0] = x0[:, 0]
                         ocp.nlp[0].x_bounds.max[:, 0] = x0[:, 0]
@@ -473,7 +402,7 @@ if __name__ == "__main__":
                                             "nlp_solver_type": "SQP",
                                             "sim_method_num_steps": 1,
                                         })
-                        x0, u0, x_out, u_out = warm_start_mhe(ocp, sol)
+                        x0, u0, x_out, u_out = warm_start_mhe(ocp, sol, use_activation=use_activation)
                         X_est[:, iter] = x_out
                         if iter < ceil(Ns/rt_ratio)-Ns_mhe:
                             U_est[:, iter] = u_out
@@ -490,17 +419,13 @@ if __name__ == "__main__":
                     U_est_tries[tries, :, :] = U_est
                     markers_target_tries[tries, :, :, :] = markers_target
                     muscles_target_tries[tries, :, :] = muscles_target
-                    print(f"nb loops: {cnt}")
+                    print(f"nb loops: {iter}")
                     print(f"Total time to solve with ACADOS : {toc} s")
                     print(f"Time per MHE iter. : {toc/iter} s")
                     err_offset = Ns_mhe
                     init_offset = 15
-                    err = compute_err(
-                        init_offset,
-                        err_offset,
-                        rt_ratio,
-                        X_est,
-                        U_est, Ns, biorbd_model, q_ref, dq_ref, tau, a_ref, u_ref, nbGT)
+                    err = compute_err_mhe(init_offset, err_offset, X_est, U_est, Ns, biorbd_model, q_ref,
+                                      dq_ref, tau, a_ref, u_ref, nbGT, ratio=rt_ratio, use_activation=use_activation)
 
                     err_tmp = [Ns_mhe, rt_ratio, toc, toc/iter, err['q'], err['q_dot'], err['tau'], err['muscles'],
                                err['markers']]

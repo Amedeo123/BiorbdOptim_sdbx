@@ -5,6 +5,7 @@ from casadi import MX, Function
 import matplotlib.pyplot as plt
 import pickle
 import sys
+from utils import *
 
 from bioptim import (
     OptimalControlProgram,
@@ -24,41 +25,6 @@ from bioptim import (
 )
 import os
 import scipy.io as sio
-
-def compute_err(init_offset, Ns_mhe, X_est, U_est, Ns, model, q, dq, tau, activations, excitations, nbGT):
-    model = model
-    get_markers = markers_fun(model)
-    err = dict()
-    nbGT = nbGT
-    Ns = Ns
-    norm_err_states = np.sqrt((Ns + 1) - Ns_mhe - init_offset)
-    norm_err_controls = np.sqrt(Ns - Ns_mhe - init_offset)
-    q_ref = q
-    dq_ref = dq
-    tau_ref = tau
-    muscles_ref = excitations
-    if use_activation:
-        muscles_ref = activations
-    sol_mark = np.zeros((3, model.nbMarkers(), Ns + 1))
-    sol_mark_ref = np.zeros((3, model.nbMarkers(), Ns + 1))
-    err['q'] = np.linalg.norm(X_est[:model.nbQ(), init_offset:-Ns_mhe] - q_ref[:, init_offset:-Ns_mhe]) / norm_err_states
-    err['q_dot'] = np.linalg.norm(
-        X_est[model.nbQ():model.nbQ() * 2, init_offset:-Ns_mhe] - dq_ref[:, init_offset:-Ns_mhe]) / norm_err_states
-    err['tau'] = np.linalg.norm(U_est[:nbGT, init_offset:-Ns_mhe] - tau_ref[:, init_offset:-Ns_mhe]) / norm_err_states
-    err['muscles'] = np.linalg.norm(
-        U_est[nbGT:, init_offset:-Ns_mhe] - muscles_ref[:, init_offset:-Ns_mhe]) / norm_err_controls
-    for i in range(Ns + 1):
-        sol_mark[:, :, i] = get_markers(X_est[:model.nbQ(), i])
-        sol_mark_ref[:, :, i] = get_markers(q[:, i])
-    err['markers'] = np.linalg.norm(
-        sol_mark[:, :, init_offset:-Ns_mhe] - sol_mark_ref[:, :, init_offset:-Ns_mhe]) / norm_err_states
-    return err
-
-
-def markers_fun(biorbd_model):
-    qMX = MX.sym('qMX', biorbd_model.nbQ())
-    return Function('markers', [qMX], [biorbd_model.markers(qMX)])
-
 
 def prepare_ocp(
         biorbd_model,
@@ -281,24 +247,15 @@ if __name__ == "__main__":
         U_est = np.vstack([data_est[1]['tau'], data_est[1]['muscles']])
     else:
         U_est = data_est[1]['muscles']
-    err_offset = 10
+
     init_offset = 15
     if use_N_elec:
         if use_activation:
-            err = compute_err(
-                init_offset,
-                err_offset,
-                X_est, U_est, Ns, biorbd_model, q_ref[:, :], dq_ref[:, :],
-                tau[:, :], a_ref[:, :], u_ref[:, :], nbGT
-            )
+            err = compute_err(init_offset, X_est, U_est, Ns, biorbd_model, q_ref,
+                              dq_ref, tau, a_ref, u_ref, nbGT, use_activation=use_activation)
     else:
-        err = compute_err(
-            init_offset,
-            err_offset,
-            X_est, U_est, Ns, biorbd_model, q_ref,
-            dq_ref,
-            tau, a_ref, u_ref, nbGT
-        )
+        err = compute_err(init_offset, X_est, U_est, Ns, biorbd_model, q_ref,
+                          dq_ref, tau, a_ref, u_ref, nbGT, use_activation=use_activation)
     use_noise = False
     print(err)
     err_tmp = np.array([[Ns, 1, toc, toc, err['q'], err['q_dot'], err['tau'], err['muscles'], err['markers']]])

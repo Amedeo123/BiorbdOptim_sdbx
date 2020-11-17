@@ -126,7 +126,7 @@ def prepare_ocp(
 
 if __name__ == "__main__":
     biorbd_model = biorbd.Model("arm_wt_rot_scap.bioMod")
-    T = 0.8
+    T = 1
     Ns = 100
     co_value = []
     motion = 'REACH2'
