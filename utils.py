@@ -23,18 +23,18 @@ def compute_err_mhe(init_offset, Ns_mhe, X_est, U_est, Ns, model, q, dq, tau,
         muscles_ref = activations[:, 0:Ns:ratio]
     sol_mark = np.zeros((3, model.nbMarkers(), ceil((Ns + 1) / ratio) - Ns_mhe))
     sol_mark_ref = np.zeros((3, model.nbMarkers(), ceil((Ns + 1) / ratio) - Ns_mhe))
-    err['q'] = np.sqrt(np.square(X_est[:model.nbQ(), init_offset:] - q_ref[:, init_offset:-Ns_mhe]).mean())
+    err['q'] = np.sqrt(np.square(X_est[:model.nbQ(), init_offset:] - q_ref[:, init_offset:-Ns_mhe]).mean(axis=1)).mean()
     err['q_dot'] = np.sqrt(
-        np.square(X_est[model.nbQ():model.nbQ() * 2, init_offset:] - dq_ref[:, init_offset:-Ns_mhe]).mean())
-    err['tau'] = np.sqrt(np.square(U_est[:nbGT, init_offset:] - tau_ref[:, init_offset:-Ns_mhe]).mean())
-    err['muscles'] = np.sqrt(np.square(U_est[nbGT:, init_offset:] - muscles_ref[:, init_offset:-Ns_mhe]).mean())
+        np.square(X_est[model.nbQ():model.nbQ() * 2, init_offset:] - dq_ref[:, init_offset:-Ns_mhe]).mean(axis=1)).mean()
+    err['tau'] = np.sqrt(np.square(U_est[:nbGT, init_offset:] - tau_ref[:, init_offset:-Ns_mhe]).mean(axis=1)).mean()
+    err['muscles'] = np.sqrt(np.square(U_est[nbGT:, init_offset:] - muscles_ref[:, init_offset:-Ns_mhe]).mean(axis=1)).mean()
     for i in range(ceil((Ns + 1) / ratio) - Ns_mhe):
         sol_mark[:, :, i] = get_markers(X_est[:model.nbQ(), i])
     sol_mark_tmp = np.zeros((3, sol_mark_ref.shape[1], Ns + 1))
     for i in range(Ns + 1):
         sol_mark_tmp[:, :, i] = get_markers(q[:, i])
     sol_mark_ref = sol_mark_tmp[:, :, 0:Ns + 1:ratio]
-    err['markers'] = np.sqrt(np.square(sol_mark[:, :, init_offset:] - sol_mark_ref[:, :, init_offset:-Ns_mhe]).mean())
+    err['markers'] = np.sqrt(np.square(sol_mark[:, :, init_offset:] - sol_mark_ref[:, :, init_offset:-Ns_mhe]).mean(axis=1)).mean()
     return err
 
 def compute_err(init_offset, X_est, U_est, Ns, model, q, dq, tau,
@@ -52,18 +52,18 @@ def compute_err(init_offset, X_est, U_est, Ns, model, q, dq, tau,
         muscles_ref = activations[:, 0:Ns]
     sol_mark = np.zeros((3, model.nbMarkers(), Ns + 1))
     sol_mark_ref = np.zeros((3, model.nbMarkers(), Ns + 1))
-    err['q'] = np.sqrt(np.square(X_est[:model.nbQ(), init_offset:] - q_ref[:, init_offset:]).mean())
+    err['q'] = np.sqrt(np.square(X_est[:model.nbQ(), init_offset:] - q_ref[:, init_offset:]).mean(axis=1)).mean()
     err['q_dot'] = np.sqrt(
-        np.square(X_est[model.nbQ():model.nbQ() * 2, init_offset:] - dq_ref[:, init_offset:]).mean())
-    err['tau'] = np.sqrt(np.square(U_est[:nbGT, init_offset:-1] - tau_ref[:, init_offset:]).mean())
-    err['muscles'] = np.sqrt(np.square(U_est[nbGT:, init_offset:-1] - muscles_ref[:, init_offset:]).mean())
+        np.square(X_est[model.nbQ():model.nbQ() * 2, init_offset:] - dq_ref[:, init_offset:]).mean(axis=1)).mean()
+    err['tau'] = np.sqrt(np.square(U_est[:nbGT, init_offset:-1] - tau_ref[:, init_offset:]).mean(axis=1)).mean()
+    err['muscles'] = np.sqrt(np.square(U_est[nbGT:, init_offset:-1] - muscles_ref[:, init_offset:]).mean(axis=1)).mean()
     for i in range(Ns + 1):
         sol_mark[:, :, i] = get_markers(X_est[:model.nbQ(), i])
     sol_mark_tmp = np.zeros((3, sol_mark_ref.shape[1], Ns + 1))
     for i in range(Ns + 1):
         sol_mark_tmp[:, :, i] = get_markers(q[:, i])
     sol_mark_ref = sol_mark_tmp[:, :, 0:Ns + 1]
-    err['markers'] = np.sqrt(np.square(sol_mark[:, :, init_offset:] - sol_mark_ref[:, :, init_offset:]).mean())
+    err['markers'] = np.sqrt(np.square(sol_mark[:, :, init_offset:] - sol_mark_ref[:, :, init_offset:]).mean(axis=1)).mean()
     return err
 
 def warm_start_mhe(ocp, sol, use_activation=False):
