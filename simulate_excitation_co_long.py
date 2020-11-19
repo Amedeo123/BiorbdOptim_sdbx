@@ -8,6 +8,7 @@ import pickle
 import os.path
 import matplotlib.pyplot as plt
 # from generate_data_noise_funct import generate_noise
+from utils import *
 from bioptim import (
     OptimalControlProgram,
     ObjectiveList,
@@ -27,10 +28,6 @@ from bioptim import (
     Simulate,
     Data
 )
-
-def markers_fun(biorbd_model):
-    qMX = MX.sym('qMX', biorbd_model.nbQ())
-    return Function('markers', [qMX], [biorbd_model.markers(qMX)])
 
 def switch_phase(ocp, sol):
     data = Data.get_data(ocp, sol)
@@ -191,15 +188,15 @@ if __name__ == "__main__":
     ocp = prepare_ocp(biorbd_model=biorbd_model, final_time=T, number_shooting_points=Ns,
                       x0=x_phase[0, :], xT=x_phase[1, :], use_SX=True)
 
-    for i in range(0, len(excitations_init)):
-        u_i = excitations_init[i]
-        u_mi = excitations_min[i]
+    for co in range(0, len(excitations_init)):
+        u_i = excitations_init[co]
+        u_mi = excitations_min[co]
         u_ma = excitations_max
 
         # Update u_init and u_bounds
         u_init = InitialGuessOption(np.tile(u_i, (ocp.nlp[0].ns, 1)).T, interpolation=InterpolationType.EACH_FRAME)
         x_init = InitialGuessOption(np.tile(np.concatenate(
-            (x_phase[0, :], [0.1] * biorbd_model.nbMuscles())), (ocp.nlp[0].ns + 1, 1)).T,
+            (x_phase[0, :], [0.5] * biorbd_model.nbMuscles())), (ocp.nlp[0].ns + 1, 1)).T,
                                     interpolation=InterpolationType.EACH_FRAME)
         ocp.update_initial_guess(x_init, u_init=u_init)
 

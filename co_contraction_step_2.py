@@ -57,8 +57,8 @@ def prepare_ocp(
     x_bounds[0].concatenate(
         Bounds([activation_min] * biorbd_model.nbMuscles(), [activation_max] * biorbd_model.nbMuscles())
     )
-    x_bounds[0].min[:nbQ, 0] = [-0.1, -0.3, 0.1, -0.3]
-    x_bounds[0].max[:nbQ, 0] = [-0.1, 0, 0.3, 0]
+    # x_bounds[0].min[:nbQ, 0] = [-0.1, -0.3, 0.1, -0.3]
+    # x_bounds[0].max[:nbQ, 0] = [-0.1, 0, 0.3, 0]
     # Control path constraint
     u_bounds = BoundsList()
     u_bounds.add(
@@ -91,8 +91,8 @@ def prepare_ocp(
         nb_threads=nb_threads,
     )
 
-T = 4
-Ns = 400
+T = 8
+Ns = 800
 save_data = True
 biorbd_model = biorbd.Model("arm_wt_rot_scap.bioMod")
 x0 = np.array([0., -0.2, 0, 0, 0, 0, 0, 0])
@@ -107,7 +107,7 @@ controls = data['data'][1]
 q_ref = states['q']
 # muscle_idx_tot = [i for i in range(biorbd_model.nbMuscles())]
 ocp = prepare_ocp(biorbd_model=biorbd_model, final_time=T, number_shooting_points=Ns, x0=x0, xT=xT, use_SX=True)
-for co in range(1, 4):
+for co in range(2, 4):
     with open(
             f"solutions/sim_ac_{int(T * 1000)}ms_{Ns}sn_REACH2_co_level_{co}_tmp.bob", 'rb'
     ) as file:
@@ -120,34 +120,51 @@ for co in range(1, 4):
     u_sol = controls['muscles']
     u_co = u_sol
     t = np.linspace(0, T, u_co.shape[1])
+    x_ref = np.hstack([q_sol[:, 0], dq_sol[:, 0], [0.3] * biorbd_model.nbMuscles()])
+    # x_ref = np.concatenate((q_sol, dq_sol, a_sol))
+    x_init = InitialGuessOption(np.tile(x_ref, (ocp.nlp[0].ns+1, 1)).T, interpolation=InterpolationType.EACH_FRAME)
+    u0 = u_sol[:, :-1]
+    u_init = InitialGuessOption(
+        u0, interpolation=InterpolationType.EACH_FRAME)
+    ocp.update_initial_guess(x_init, u_init)
+
+    x_bounds = BoundsList()
+    x_bounds.add(QAndQDotBounds(biorbd_model))
+    x_bounds[0].concatenate(
+        Bounds([0] * biorbd_model.nbMuscles(), [1] * biorbd_model.nbMuscles()))
+    x_bounds[0].min[:biorbd_model.nbQ() * 2, 0] = x_ref[:biorbd_model.nbQ() * 2]
+    x_bounds[0].max[:biorbd_model.nbQ() * 2, 0] = x_ref[:biorbd_model.nbQ() * 2]
+    x_bounds[0].min[biorbd_model.nbQ() * 2:biorbd_model.nbQ() * 2 + biorbd_model.nbMuscles(), 0] = [0.1] * biorbd_model.nbMuscles()
+    x_bounds[0].max[biorbd_model.nbQ() * 2:biorbd_model.nbQ() * 2 + biorbd_model.nbMuscles(), 0] = [1] * biorbd_model.nbMuscles()
+    ocp.update_bounds(x_bounds=x_bounds)
 
     # Update Objectives
     objective_functions = ObjectiveList()
-    # objective_functions.add(
-    #     Objective.Lagrange.MINIMIZE_STATE, weight=1, states_idx=np.array(range(biorbd_model.nbQ()))
-    # )
-    objective_functions.add(Objective.Lagrange.MINIMIZE_STATE, weight=10,
+    objective_functions.add(
+        Objective.Lagrange.MINIMIZE_STATE, weight=10, states_idx=np.array(range(biorbd_model.nbQ()))
+    )
+    objective_functions.add(Objective.Lagrange.MINIMIZE_STATE, weight=100,
                             states_idx=np.array(range(biorbd_model.nbQ(), biorbd_model.nbQ() * 2)))
     objective_functions.add(
         Objective.Lagrange.MINIMIZE_STATE,
-        weight=1,
+        weight=100,
         states_idx=np.array(
             range(biorbd_model.nbQ() * 2, biorbd_model.nbQ() * 2 + biorbd_model.nbMuscles()))
     )
     objective_functions.add(
         Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL,
-        weight=1,
-        muscles_idx=np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 16])
+        weight=100,
+        # muscles_idx=np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 16])
     )
     objective_functions.add(
         Objective.Lagrange.TRACK_MUSCLES_CONTROL,
-        weight=1000,
+        weight=10000,
         target=u_co[[9, 10, 17, 18], :-1],
         muscles_idx=np.array([9, 10, 17, 18]),
     )
     objective_functions.add(
         Objective.Lagrange.TRACK_STATE,
-        weight=10000,
+        weight=100000,
         target=q_ref,
         # target=np.tile(xT[:biorbd_model.nbQ()], (u_co.shape[1] + 1, 1)).T,
         states_idx=np.array(range(biorbd_model.nbQ()))
@@ -157,7 +174,7 @@ for co in range(1, 4):
         solver=Solver.ACADOS,
         show_online_optim=False,
         solver_options={
-            "nlp_solver_max_iter": 100,
+            "nlp_solver_max_iter": 40,
             "nlp_solver_tol_comp": 1e-4,
             "nlp_solver_tol_eq": 1e-4,
             "nlp_solver_tol_stat": 1e-4,
@@ -168,6 +185,7 @@ for co in range(1, 4):
     states, controls = Data.get_data(ocp, sol)
     u_final = controls['muscles']
     q_co = states['q']
+    dq_co = states['q_dot']
     t = np.linspace(0, T, Ns + 1)
     plt.figure("Muscles controls")
     for i in range(biorbd_model.nbMuscles()):
@@ -180,9 +198,15 @@ for co in range(1, 4):
         plt.subplot(2, 3, i + 1)
         plt.plot(q_co[i, :])
         plt.plot(q_ref[i, :], 'r')
+        plt.figure("Q")
+    plt.figure("dQ")
+    for i in range(biorbd_model.nbQ()):
+        plt.subplot(2, 3, i + 1)
+        plt.plot(dq_co[i, :])
+        plt.plot(dq_sol[i, :], 'r')
             # plt.title(q_name[i])
     # plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
-    # plt.show()
+    plt.show()
     if save_data:
         ocp.save_get_data(
             sol, f"solutions/sim_ac_{int(T * 1000)}ms_{Ns}sn_REACH2_co_level_{co}.bob"

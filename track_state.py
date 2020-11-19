@@ -59,8 +59,10 @@ def prepare_ocp(
     x_bounds[0].concatenate(
         Bounds([activation_min] * biorbd_model.nbMuscles(), [activation_max] * biorbd_model.nbMuscles())
     )
-    x_bounds[0].min[:, 0] = x0
-    x_bounds[0].max[:, 0] = x0
+    x_bounds[0].min[:nbQ*2, 0] = x0[:nbQ*2]
+    x_bounds[0].max[:nbQ*2, 0] = x0[:nbQ*2]
+    x_bounds[0].min[nbQ * 2:nbQ * 2+nbMT, 0] = [0.1] * nbMT
+    x_bounds[0].max[nbQ * 2:nbQ * 2+nbMT, 0] = [1] * nbMT
     # Control path constraint
     u_bounds = BoundsList()
     u_bounds.add(
@@ -107,11 +109,11 @@ if __name__ == "__main__":
     nbMT = biorbd_model.nbMuscleTotal()
     nbQ = biorbd_model.nbQ()
 
-    x0 = np.hstack([q_ref[:, 0], dq_ref[:, 0], [0.1] * biorbd_model.nbMuscles()])
+    x0 = np.hstack([q_ref[:, 0], dq_ref[:, 0], [0.3] * biorbd_model.nbMuscles()])
 
     tau_init = 0
     muscle_init = 0.5
-    use_CO = False
+    use_CO = True
 
     excitations_max = [1] * biorbd_model.nbMuscleTotal()
     if use_CO is not True:
@@ -150,10 +152,7 @@ if __name__ == "__main__":
         ocp.update_bounds(u_bounds=u_bounds)
 
         objectives = ObjectiveList()
-        if co == 3:
-            objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=1000)
-        else:
-            objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=10000)
+        objectives.add(Objective.Lagrange.MINIMIZE_MUSCLES_CONTROL, weight=1000)
 
         objectives.add(
             Objective.Lagrange.TRACK_STATE,
@@ -163,7 +162,7 @@ if __name__ == "__main__":
         )
 
         objectives.add(
-            Objective.Lagrange.MINIMIZE_STATE, weight=1, states_idx=np.array(range(nbQ * 2, nbQ * 2 + nbMT))
+            Objective.Lagrange.MINIMIZE_STATE, weight=100, states_idx=np.array(range(nbQ * 2, nbQ * 2 + nbMT))
         )
 
         objectives.add(
@@ -175,7 +174,7 @@ if __name__ == "__main__":
         sol = ocp.solve(solver=Solver.ACADOS,
                         show_online_optim=False,
                         solver_options={
-                            "nlp_solver_max_iter": 100,
+                            "nlp_solver_max_iter": 50,
                             "nlp_solver_tol_comp": 1e-6,
                             "nlp_solver_tol_eq": 1e-6,
                             "nlp_solver_tol_stat": 1e-6,
@@ -206,6 +205,7 @@ if __name__ == "__main__":
             plt.subplot(4, 5, i + 1)
             plt.plot(controls[i, :].T)
             plt.plot(U_est[i, :].T, 'x')
+            plt.plot(X_est[nbQ*2 + i, :].T, '--')
             plt.title(biorbd_model.muscleNames()[i].to_string())
         plt.legend(
             labels=['u_ref', 'u_est'], bbox_to_anchor=(1.05, 1), loc='upper left',
