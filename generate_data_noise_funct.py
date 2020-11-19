@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import scipy.fftpack
 import biorbd
 import pickle
-from casadi import MX, Function
+from utils import *
 
 T = 0.5
 N = 150
@@ -23,10 +23,6 @@ N = 150
 # u_co = u_sol
 # xf = np.linspace(-Fs/2, Fs/2, N)
 t = np.linspace(0, T, N)
-def markers_fun(biorbd_model):
-    qMX = MX.sym('qMX', biorbd_model.nbQ())
-    return Function('markers', [qMX], [biorbd_model.markers(qMX)])
-
 
 def generate_noise(model, q, excitations, marker_noise_level, EMG_noise_level):
     biorbd_model = model
@@ -37,10 +33,18 @@ def generate_noise(model, q, excitations, marker_noise_level, EMG_noise_level):
     EMG_fft_noise = EMG_fft
     for k in range(biorbd_model.nbMuscles()):
         # EMG_fft_noise[k, 0] += np.random.normal(0, (np.real(EMG_fft_noise[k, 0]*0.2)))
-        for i in range(1, 3):
-            # print(np.real(EMG_fft[k, i]) * EMG_noise_level*10)
-            # print(1/i * (EMG_noise_level))
-            rand_noise = np.random.normal(1/i * (EMG_noise_level), np.abs(np.real(EMG_fft[k, i]) * EMG_noise_level*10))
+        for i in range(1, 17, 3):
+            if i in [4, 8]:
+                rand_noise = np.random.normal(np.real(EMG_fft[k, i]) / i * EMG_noise_level,
+                                              np.abs(np.real(EMG_fft[k, i]) * 0.2 * EMG_noise_level))
+
+            elif i % 2 == 0:
+                rand_noise = np.random.normal(2 * np.real(EMG_fft[k, i]) / i * EMG_noise_level,
+                                              np.abs(np.real(EMG_fft[k, i]) * 0.2 * EMG_noise_level))
+
+            else:
+                rand_noise = np.random.normal(2 * np.real(EMG_fft[k, i]) / i * EMG_noise_level,
+                                              np.abs(np.real(EMG_fft[k, i]) * EMG_noise_level * 5))
             EMG_fft_noise[k, i] += rand_noise
             EMG_fft_noise[k, -i] += rand_noise
     EMG_noise = np.real(scipy.fftpack.ifft(EMG_fft_noise))
@@ -53,11 +57,12 @@ def generate_noise(model, q, excitations, marker_noise_level, EMG_noise_level):
     # plt.figure("Muscles controls")
     # for i in range(biorbd_model.nbMuscles()):
     #     plt.subplot(4, 5, i + 1)
-    #     plt.step(t, np.real(EMG_no_noise[i, :]))
-    #     plt.step(t, np.real(EMG_noise[i, :]))
-    #     plt.step(t, u_co[i, :])
+    #     plt.plot(np.real(EMG_no_noise[i, :]))
+    #     plt.plot(np.real(EMG_noise[i, :]))
+    #     plt.plot(u_co[i, :])
     #     plt.title(biorbd_model.muscleNames()[i].to_string())
-    # plt.legend(labels=['without_noise', 'with_noise', 'ref'], bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+    # plt.legend(labels=['without_noise', 'with_noise', 'ref'], bbox_to_anchor=(1.05, 1), loc='upper left',
+    #            borderaxespad=0.)
     # plt.show()
 
     # Ref
