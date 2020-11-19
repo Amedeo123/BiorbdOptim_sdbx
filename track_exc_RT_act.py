@@ -113,7 +113,7 @@ if __name__ == "__main__":
     use_noise = False
     use_co = False
     use_bash = True
-    use_try = False
+    use_try = True
     if use_activation:
         use_N_elec = True
     # Variable of the problem
@@ -121,6 +121,8 @@ if __name__ == "__main__":
     Ns = 800
     T_elec = 0.02
     N_elec = int(T_elec * Ns / T)
+    final_offset = 22
+    init_offset = 15
     # if use_N_elec:
     #     Ns = Ns-N_elec
     Ns_mhe = 2
@@ -136,17 +138,17 @@ if __name__ == "__main__":
                         7, 7, 7, 7,
                         8, 8, 8]
     else:
-        rt_ratio_tot = [2, 2,
-                        3, 3, 3, 3,
-                        4, 4,
-                        5, 5, 5, 5, 5, 5,
-                        7, 7, 7, 7,
-                        8, 8, 8]
-        # rt_ratio_tot = [2, 2, 2, 2, 2, 2,
-        #                 3, 3, 3, 3, 3, 3,
-        #                 4, 4, 4, 4, 4, 4, 4,
-        #                 5, 5, 5, 5,
-        #                 6, 6, 6, 6, 6, 6, 6]
+        # rt_ratio_tot = [2, 2,
+        #                 3, 3, 3, 3,
+        #                 4, 4,
+        #                 5, 5, 5, 5, 5, 5,
+        #                 7, 7, 7, 7,
+        #                 8, 8, 8]
+        rt_ratio_tot = [2, 2, 2, 2, 2, 2,
+                        3, 3, 3, 3, 3, 3,
+                        4, 4, 4, 4, 4, 4, 4,
+                        5, 5, 5, 5,
+                        6, 6, 6, 6, 6, 6, 6]
 
     rt_ratio = rt_ratio_tot[Ns_mhe - 2]
     T_mhe = T / (Ns / rt_ratio) * Ns_mhe
@@ -291,9 +293,9 @@ if __name__ == "__main__":
                     # Update objectives functions
                     if use_activation:
                         w_marker = 100000000
-                        w_control = 10000
+                        w_control = 100000
                     else:
-                        w_marker = 10000000
+                        w_marker = 100000000
                         w_control = 100000
                     objectives = ObjectiveList()
                     if TRACK_EMG:
@@ -332,11 +334,12 @@ if __name__ == "__main__":
                                     solver_options={
                                         "nlp_solver_tol_comp": 1e-4,
                                         "nlp_solver_tol_eq": 1e-4,
-                                        "nlp_solver_tol_stat": 1e-3,
+                                        "nlp_solver_tol_stat": 1e-4,
                                         "integrator_type": "IRK",
                                         "nlp_solver_type": "SQP",
                                         "sim_method_num_steps": 1,
-                                        "nlp_solver_max_iter": 15,
+                                        "print_level": 0,
+                                        "nlp_solver_max_iter": 50,
                                     })
                     if sol['status'] != 0:
                         if TRACK_EMG:
@@ -404,7 +407,7 @@ if __name__ == "__main__":
                                         solver_options={
                                             "nlp_solver_tol_comp": 1e-4,
                                             "nlp_solver_tol_eq": 1e-4,
-                                            "nlp_solver_tol_stat": 1e-3,
+                                            "nlp_solver_tol_stat": 1e-4,
                                             "integrator_type": "IRK",
                                             "nlp_solver_type": "SQP",
                                             "sim_method_num_steps": 1,
@@ -431,8 +434,7 @@ if __name__ == "__main__":
                     print(f"Total time to solve with ACADOS : {toc} s")
                     print(f"Time per MHE iter. : {toc / iter} s")
                     err_offset = Ns_mhe
-                    init_offset = 15
-                    err = compute_err_mhe(init_offset, err_offset, X_est, U_est, Ns, biorbd_model, q_ref,
+                    err = compute_err_mhe(init_offset, final_offset, err_offset, X_est, U_est, Ns, biorbd_model, q_ref,
                                       dq_ref, tau, a_ref, u_ref, nbGT, ratio=rt_ratio, use_activation=use_activation)
 
                     err_tmp = [Ns_mhe, rt_ratio, toc, toc / iter, err['q'], err['q_dot'], err['tau'], err['muscles'],
@@ -515,13 +517,13 @@ if __name__ == "__main__":
                 # T_tot = sum(T_tot_tries) / nb_try
                 err_dic = {"err_tries": err_tries}
                 if WRITE_STATS:
-                    if os.path.isfile(f"solutions/stats_rt_test_activation_driven{use_activation}.mat"):
-                        matcontent = sio.loadmat(f"solutions/stats_rt_test_activation_driven{use_activation}.mat")
+                    if os.path.isfile(f"solutions/stats_rt_activation_driven{use_activation}.mat"):
+                        matcontent = sio.loadmat(f"solutions/stats_rt_activation_driven{use_activation}.mat")
                         err_mat = np.concatenate((matcontent['err_tries'], err_tries))
                         err_dic = {"err_tries": err_mat}
-                        sio.savemat(f"solutions/stats_rt_test_activation_driven{use_activation}.mat", err_dic)
+                        sio.savemat(f"solutions/stats_rt_activation_driven{use_activation}.mat", err_dic)
                     else:
-                        sio.savemat(f"solutions/stats_rt_test_activation_driven{use_activation}.mat", err_dic)
+                        sio.savemat(f"solutions/stats_rt_activation_driven{use_activation}.mat", err_dic)
 
                 # Save results for all tries
                 if save_results:

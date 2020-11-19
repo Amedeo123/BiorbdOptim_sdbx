@@ -106,7 +106,7 @@ if __name__ == "__main__":
     use_activation = False
     use_torque = False
     use_ACADOS = True
-    use_bash = False
+    use_bash = True
     save_stats = True
     if use_activation:
         use_N_elec = True
@@ -117,6 +117,8 @@ if __name__ == "__main__":
     T_elec = 0.02
     T = 8
     Ns = 800
+    final_offset = 22
+    init_offset = 15
     # if use_N_elec:
     #     Ns = Ns - N_elec
 
@@ -247,52 +249,48 @@ if __name__ == "__main__":
         U_est = np.vstack([data_est[1]['tau'], data_est[1]['muscles']])
     else:
         U_est = data_est[1]['muscles']
-    init_offset = 15
-    if use_N_elec:
-        if use_activation:
-            err = compute_err(init_offset, X_est, U_est, Ns, biorbd_model, q_ref,
-                              dq_ref, tau, a_ref, u_ref, nbGT, use_activation=use_activation)
-    else:
-        err = compute_err(init_offset, X_est, U_est, Ns, biorbd_model, q_ref,
-                          dq_ref, tau, a_ref, u_ref, nbGT, use_activation=use_activation)
+
+    err = compute_err(init_offset, final_offset, X_est, U_est, Ns, biorbd_model, q_ref,
+                      dq_ref, tau, a_ref, u_ref, nbGT, use_activation=use_activation)
+
     use_noise = False
     print(err)
     err_tmp = np.array([[Ns, 1, toc, toc, err['q'], err['q_dot'], err['tau'], err['muscles'], err['markers']]])
     if save_stats:
-        if os.path.isfile(f"solutions/stats_rt_test_activation_driven{use_activation}.mat"):
+        if os.path.isfile(f"solutions/stats_rt_activation_driven{use_activation}.mat"):
             matcontent = sio.loadmat(
-                f"solutions/stats_rt_test_activation_driven{use_activation}.mat")
+                f"solutions/stats_rt_activation_driven{use_activation}.mat")
             err_mat = np.concatenate((matcontent['err_tries'], err_tmp))
             err_dic = {"err_tries": err_mat}
-            sio.savemat(f"solutions/stats_rt_test_activation_driven{use_activation}.mat", err_dic)
+            sio.savemat(f"solutions/stats_rt_activation_driven{use_activation}.mat", err_dic)
         else:
-            RuntimeError(f"File 'solutions/stats_rt_test_activation_driven{use_activation}.mat' does not exist")
-    plt.subplot(211)
-    plt.plot(X_est[:biorbd_model.nbQ(), :].T, 'x')
-    plt.gca().set_prop_cycle(None)
-    plt.plot(q_ref.T)
-    plt.legend(labels=['Q estimate', 'Q truth'], bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=0.)
-    plt.subplot(212)
-    plt.plot(X_est[biorbd_model.nbQ():biorbd_model.nbQ()*2, :].T, 'x')
-    plt.gca().set_prop_cycle(None)
-    plt.plot(dq_ref.T)
-    plt.legend(labels=['Qdot estimate', 'Qdot truth'], bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=0.)
-    # plt.tight_layout()
-    plt.figure('Muscles excitations')
-    for i in range(biorbd_model.nbMuscles()):
-        plt.subplot(4, 5, i + 1)
-        # if use_N_elec:
-        #     plt.plot(a_ref[i, :-N_elec].T)
-        #     plt.plot(u_ref[i, :-N_elec].T, '--')
-        # else:
-        plt.plot(a_ref[i, :].T)
-        plt.plot(u_ref[i, :].T, '--')
-        plt.plot(U_est[i, :].T, 'k:')
-        plt.title(biorbd_model.muscleNames()[i].to_string())
-    plt.legend(
-        labels=['a_ref', 'u_ref', 'a_est'], bbox_to_anchor=(1.05, 1), loc='upper left',
-        borderaxespad=0.
-    )
+            RuntimeError(f"File 'solutions/stats_rt_activation_driven{use_activation}.mat' does not exist")
+    # plt.subplot(211)
+    # plt.plot(X_est[:biorbd_model.nbQ(), :].T, 'x')
+    # plt.gca().set_prop_cycle(None)
+    # plt.plot(q_ref.T)
+    # plt.legend(labels=['Q estimate', 'Q truth'], bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=0.)
+    # plt.subplot(212)
+    # plt.plot(X_est[biorbd_model.nbQ():biorbd_model.nbQ()*2, :].T, 'x')
+    # plt.gca().set_prop_cycle(None)
+    # plt.plot(dq_ref.T)
+    # plt.legend(labels=['Qdot estimate', 'Qdot truth'], bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=0.)
+    # # plt.tight_layout()
+    # plt.figure('Muscles excitations')
+    # for i in range(biorbd_model.nbMuscles()):
+    #     plt.subplot(4, 5, i + 1)
+    #     # if use_N_elec:
+    #     #     plt.plot(a_ref[i, :-N_elec].T)
+    #     #     plt.plot(u_ref[i, :-N_elec].T, '--')
+    #     # else:
+    #     plt.plot(a_ref[i, :].T)
+    #     plt.plot(u_ref[i, :].T, '--')
+    #     plt.plot(U_est[i, :].T, 'k:')
+    #     plt.title(biorbd_model.muscleNames()[i].to_string())
+    # plt.legend(
+    #     labels=['a_ref', 'u_ref', 'a_est'], bbox_to_anchor=(1.05, 1), loc='upper left',
+    #     borderaxespad=0.
+    # )
     # plt.figure('RMSE_activations')
     # plt.figure()
     # if use_torque:
@@ -316,7 +314,7 @@ if __name__ == "__main__":
     #     loc='upper left', borderaxespad=0.
     # )
     # plt.tight_layout()
-    plt.show()
+    # plt.show()
     # if use_activation:
     #     ocp.save_get_data(
     #         sol, f"solutions/tracking_markers_EMG_activations_driven.bob"
