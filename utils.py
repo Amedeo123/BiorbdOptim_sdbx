@@ -3,6 +3,7 @@ from casadi import MX, Function, horzcat
 from math import *
 from bioptim import Data
 import biorbd
+import csv
 
 def markers_fun(biorbd_model):
     qMX = MX.sym('qMX', biorbd_model.nbQ())
@@ -116,3 +117,12 @@ def muscles_forces(q, qdot, act, controls, model):
     # muscles_tau = model.muscularJointTorque(muscles_states, True,  q, qdot).to_mx()
     muscles_force = model.muscleForces(muscles_states, q, qdot).to_mx()
     return muscles_force
+
+def convert_txt_output_to_list(file, nbco, nbmark, nbemg, nbtries):
+    conv_list = [[[[[] for i in range(nbtries)] for j in range(nbemg)] for k in range(nbmark)] for l in range(nbco)]
+    with open(file) as f:
+        fdel = csv.reader(f, delimiter=';', lineterminator='\n')
+        for line in fdel:
+            if line[0] == '7':
+                conv_list[int(line[1])][int(line[2])][int(line[3])][int(line[4])].append(line[5])
+    return conv_list
