@@ -9,6 +9,7 @@ import pandas as pd
 import seaborn
 from matplotlib.colors import LogNorm
 import pingouin as pg
+from utils import convert_txt_output_to_list
 
 seaborn.set_style("whitegrid")
 seaborn.color_palette()
@@ -33,6 +34,10 @@ RMSEtrack = np.ndarray((co_lvl * len(marker_noise_lvl) * len(EMG_noise_lvl) * 4 
 W_LOW_WEIGHTS = False
 folder_w_track = "solutions/w_track_emg_rt"
 folder_wt_track = "solutions/wt_track_emg_rt"
+status_trackEMG = convert_txt_output_to_list(folder_w_track+'/status_track_rt_EMGTrue.txt',
+                           co_lvl, len(marker_noise_lvl), len(EMG_noise_lvl), nb_try)
+status_minEMG = convert_txt_output_to_list(folder_wt_track+'/status_track_rt_EMGFalse.txt',
+                           co_lvl, len(marker_noise_lvl), len(EMG_noise_lvl), nb_try)
 
 co_lvl_df = [co_lvl_label[0]]*len(marker_noise_lvl)*len(EMG_noise_lvl)*4*nb_try \
             + [co_lvl_label[1]]*len(marker_noise_lvl)*len(EMG_noise_lvl)*4*nb_try \
@@ -59,8 +64,8 @@ EMG_n_lvl_stats = (['track']*4*nb_try + ['track']*4*nb_try
 states_controls_df = ([states_controls[0]]*nb_try + [states_controls[1]]*nb_try + [states_controls[2]]*nb_try
                       + [states_controls[3]]*nb_try)*co_lvl*len(marker_noise_lvl)*len(EMG_noise_lvl)
 count = 0
-count_nc_min = 0
-count_nc_track = 0
+count_nc_min = np.zeros((4, 4, 4))
+count_nc_track = np.zeros((4, 4, 4))
 for co in range(co_lvl):
     for marker_lvl in range(len(marker_noise_lvl)):
         for EMG_lvl in range(len(EMG_noise_lvl)):
@@ -74,79 +79,69 @@ for co in range(co_lvl):
                     f"{folder_w_track}/track_mhe_w_EMG_excitation_driven_co_lvl{co}_noise_lvl_{marker_noise_lvl[marker_lvl]}_{EMG_noise_lvl[EMG_lvl]}.mat"
                 )
 
-            Nmhe = mat_content['N_mhe']
+            Nmhe = int(mat_content['N_mhe'])
             N = mat_content['N_tot']
             NS = int(N - Nmhe)
 
             X_est = mat_content['X_est']
             U_est = mat_content['U_est']
-            q_ref = mat_content['x_sol'][:biorbd_model.nbQ(), :NS + 1]
-            dq_ref = mat_content['x_sol'][biorbd_model.nbQ():biorbd_model.nbQ() * 2, :NS + 1]
-            a_ref = mat_content['x_sol'][-biorbd_model.nbMuscles():, :NS + 1]
-            u_ref = mat_content['u_sol'][:, :NS]
+            q_ref = mat_content['x_sol'][:biorbd_model.nbQ(), ::3][:, :-Nmhe]
+            dq_ref = mat_content['x_sol'][biorbd_model.nbQ():biorbd_model.nbQ() * 2, ::3][:, :-Nmhe]
+            a_ref = mat_content['x_sol'][-biorbd_model.nbMuscles():, ::3][:, :-Nmhe]
+            u_ref = mat_content['u_sol'][:, ::3][:, :-Nmhe]
 
-            q_ref_try = np.ndarray((nb_try, biorbd_model.nbQ(), NS + 1))
-            dq_ref_try = np.ndarray((nb_try, biorbd_model.nbQ(), NS + 1))
-            a_ref_try = np.ndarray((nb_try, biorbd_model.nbMuscles(), NS + 1))
-            u_ref_try = np.ndarray((nb_try, biorbd_model.nbMuscles(), NS))
+            q_ref_try = np.ndarray((nb_try, q_ref.shape[0], q_ref.shape[1]))
+            dq_ref_try = np.ndarray((nb_try, dq_ref.shape[0], dq_ref.shape[1]))
+            a_ref_try = np.ndarray((nb_try, a_ref.shape[0], a_ref.shape[1]))
+            u_ref_try = np.ndarray((nb_try, u_ref.shape[0], u_ref.shape[1]))
 
             for i in range(nb_try):
                 if EMG_lvl_label[EMG_lvl] == "minimize":
-                    with open(f'{folder_wt_track}/status_track_rt_EMGFalse.txt') as f:
-                        for line in f:
-                            if f"7; {co}; {marker_lvl}; {EMG_lvl}; {i}" in line:
-                                if not ((line[-2]) in ['1', '2', '3', '4']) and not (line[-6:-2] == 'init'):
-                                    q_ref_try[i, :, :] = np.nan
-                                    dq_ref_try[i, :, :] = np.nan
-                                    a_ref_try[i, :, :] = np.nan
-                                    u_ref_try[i, :, :] = np.nan
-                                    count_nc_min += 1
-                                    break
-                                else:
-                                    q_ref_try[i, :, :] = q_ref
-                                    dq_ref_try[i, :, :] = dq_ref
-                                    a_ref_try[i, :, :] = a_ref
-                                    u_ref_try[i, :, :] = u_ref
+                    if len(status_minEMG[co][marker_lvl][EMG_lvl][i]) > 10:
+                        q_ref_try[i, :, :] = np.nan
+                        dq_ref_try[i, :, :] = np.nan
+                        a_ref_try[i, :, :] = np.nan
+                        u_ref_try[i, :, :] = np.nan
+                        count_nc_min[co, marker_lvl, EMG_lvl] += 1
+                    else:
+                        q_ref_try[i, :, :] = q_ref
+                        dq_ref_try[i, :, :] = dq_ref
+                        a_ref_try[i, :, :] = a_ref
+                        u_ref_try[i, :, :] = u_ref
                 else:
-                    with open(f'{folder_w_track}/status_track_rt_EMGTrue.txt') as f:
-                        for line in f:
-                            if f"7; {co}; {marker_lvl}; {EMG_lvl}; {i}" in line:
-                                if not ((line[-4:-1]) in ['; 1', '; 2', '; 3', '; 4']) \
-                                        and not (line[-6:-2] == 'init'):
-                                    q_ref_try[i, :, :] = np.nan
-                                    dq_ref_try[i, :, :] = np.nan
-                                    a_ref_try[i, :, :] = np.nan
-                                    u_ref_try[i, :, :] = np.nan
-                                    count_nc_track += 1
-                                    break
-                                else:
-                                    q_ref_try[i, :, :] = q_ref
-                                    dq_ref_try[i, :, :] = dq_ref
-                                    a_ref_try[i, :, :] = a_ref
-                                    u_ref_try[i, :, :] = u_ref
+                    if len(status_trackEMG[co][marker_lvl][EMG_lvl][i]) > 20:
+                        q_ref_try[i, :, :] = np.nan
+                        dq_ref_try[i, :, :] = np.nan
+                        a_ref_try[i, :, :] = np.nan
+                        u_ref_try[i, :, :] = np.nan
+                        count_nc_track[co, marker_lvl, EMG_lvl] += 1
+                    else:
+                        q_ref_try[i, :, :] = q_ref
+                        dq_ref_try[i, :, :] = dq_ref
+                        a_ref_try[i, :, :] = a_ref
+                        u_ref_try[i, :, :] = u_ref
 
-            print()
-            # Q_err = np.linalg.norm(X_est[:, :biorbd_model.nbQ(), :] - q_ref_try, axis=2) / np.sqrt(NS + 1)
-            # Q_err = np.nanmean(Q_err, axis=1)
-            # DQ_err = np.linalg.norm(
-            #     X_est[:, biorbd_model.nbQ():biorbd_model.nbQ() * 2, :] - dq_ref_try, axis=2) / np.sqrt(NS + 1)
-            # DQ_err = np.nanmean(DQ_err, axis=1)
-            # A_err = np.linalg.norm(
-            #     X_est[:, -biorbd_model.nbMuscles():, :] - a_ref_try, axis=2) / np.sqrt(NS + 1)
-            # A_err = np.nanmean(A_err, axis=1)
-            # U_err = np.linalg.norm(
-            #     U_est[:, -biorbd_model.nbMuscles():, :] - u_ref_try, axis=2) / np.sqrt(NS)
-            # U_err = np.nanmean(U_err, axis=1)
-            #
-            # RMSEtrack[count:count+nb_try] = Q_err
-            # RMSEtrack[count+nb_try:count+2*nb_try] = DQ_err
-            # RMSEtrack[count+2*nb_try:count+3*nb_try] = A_err
-            # RMSEtrack[count+3*nb_try:count+4*nb_try] = U_err
+            Q_err = np.linalg.norm(X_est[:, :biorbd_model.nbQ(), :] - q_ref_try, axis=2) / np.sqrt(NS + 1)
+            Q_err = np.nanmean(Q_err, axis=1)
+            DQ_err = np.linalg.norm(
+                X_est[:, biorbd_model.nbQ():biorbd_model.nbQ() * 2, :] - dq_ref_try, axis=2) / np.sqrt(NS + 1)
+            DQ_err = np.nanmean(DQ_err, axis=1)
+            A_err = np.linalg.norm(
+                X_est[:, -biorbd_model.nbMuscles():, :] - a_ref_try, axis=2) / np.sqrt(NS + 1)
+            A_err = np.nanmean(A_err, axis=1)
+            U_err = np.linalg.norm(
+                U_est[:, -biorbd_model.nbMuscles():, :] - u_ref_try, axis=2) / np.sqrt(NS)
+            U_err = np.nanmean(U_err, axis=1)
+
+            RMSEtrack[count:count+nb_try] = Q_err
+            RMSEtrack[count+nb_try:count+2*nb_try] = DQ_err
+            RMSEtrack[count+2*nb_try:count+3*nb_try] = A_err
+            RMSEtrack[count+3*nb_try:count+4*nb_try] = U_err
             count += 4*nb_try
 
 print(f"Number of optim: {int(count/5)}")
-print(f"Number of optim convergence with EMG tracking: {count_nc_track}")
-print(f"Number of optim convergence without EMG tracking: {count_nc_min}")
+print(f"Number of optim convergence with EMG tracking: {count_nc_track.sum()}")
+print(f"Number of optim convergence without EMG tracking: {count_nc_min.sum()}")
 
 print(f"Convergence rate with EMG tracking: {100-count_nc_track/(count/5)*100}%")
 print(f"Convergence rate without EMG tracking: {100-count_nc_min/(count/5)*100}%")
