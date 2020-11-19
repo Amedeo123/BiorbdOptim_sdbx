@@ -2,17 +2,20 @@ import numpy as np
 from casadi import MX, Function, horzcat
 from math import *
 from bioptim import Data
+import biorbd
 
 def markers_fun(biorbd_model):
     qMX = MX.sym('qMX', biorbd_model.nbQ())
     return Function('markers', [qMX],
                     [horzcat(*[biorbd_model.markers(qMX)[i].to_mx() for i in range(biorbd_model.nbMarkers())])])
 
-def compute_err_mhe(init_offset, Ns_mhe, X_est, U_est, Ns, model, q, dq, tau,
+
+def compute_err_mhe(init_offset, final_offset, Ns_mhe, X_est, U_est, Ns, model, q, dq, tau,
                 activations, excitations, nbGT, ratio=1, use_activation=False):
     model = model
     get_markers = markers_fun(model)
     err = dict()
+    offset = final_offset - Ns_mhe
     nbGT = nbGT
     Ns = Ns
     q_ref = q[:, 0:Ns + 1:ratio]
@@ -23,21 +26,21 @@ def compute_err_mhe(init_offset, Ns_mhe, X_est, U_est, Ns, model, q, dq, tau,
         muscles_ref = activations[:, 0:Ns:ratio]
     sol_mark = np.zeros((3, model.nbMarkers(), ceil((Ns + 1) / ratio) - Ns_mhe))
     sol_mark_ref = np.zeros((3, model.nbMarkers(), ceil((Ns + 1) / ratio) - Ns_mhe))
-    err['q'] = np.sqrt(np.square(X_est[:model.nbQ(), init_offset:] - q_ref[:, init_offset:-Ns_mhe]).mean(axis=1)).mean()
+    err['q'] = np.sqrt(np.square(X_est[:model.nbQ(), init_offset:-offset] - q_ref[:, init_offset:-final_offset]).mean(axis=1)).mean()
     err['q_dot'] = np.sqrt(
-        np.square(X_est[model.nbQ():model.nbQ() * 2, init_offset:] - dq_ref[:, init_offset:-Ns_mhe]).mean(axis=1)).mean()
-    err['tau'] = np.sqrt(np.square(U_est[:nbGT, init_offset:] - tau_ref[:, init_offset:-Ns_mhe]).mean(axis=1)).mean()
-    err['muscles'] = np.sqrt(np.square(U_est[nbGT:, init_offset:] - muscles_ref[:, init_offset:-Ns_mhe]).mean(axis=1)).mean()
+        np.square(X_est[model.nbQ():model.nbQ() * 2, init_offset:-offset] - dq_ref[:, init_offset:-final_offset]).mean(axis=1)).mean()
+    err['tau'] = np.sqrt(np.square(U_est[:nbGT, init_offset:-offset] - tau_ref[:, init_offset:-final_offset]).mean(axis=1)).mean()
+    err['muscles'] = np.sqrt(np.square(U_est[nbGT:, init_offset:-offset] - muscles_ref[:, init_offset:-final_offset]).mean(axis=1)).mean()
     for i in range(ceil((Ns + 1) / ratio) - Ns_mhe):
         sol_mark[:, :, i] = get_markers(X_est[:model.nbQ(), i])
     sol_mark_tmp = np.zeros((3, sol_mark_ref.shape[1], Ns + 1))
     for i in range(Ns + 1):
         sol_mark_tmp[:, :, i] = get_markers(q[:, i])
     sol_mark_ref = sol_mark_tmp[:, :, 0:Ns + 1:ratio]
-    err['markers'] = np.sqrt(np.square(sol_mark[:, :, init_offset:] - sol_mark_ref[:, :, init_offset:-Ns_mhe]).mean(axis=1)).mean()
+    err['markers'] = np.sqrt(np.square(sol_mark[:, :, init_offset:-offset] - sol_mark_ref[:, :, init_offset:-final_offset]).mean(axis=1)).mean()
     return err
 
-def compute_err(init_offset, X_est, U_est, Ns, model, q, dq, tau,
+def compute_err(init_offset, final_offset, X_est, U_est, Ns, model, q, dq, tau,
                 activations, excitations, nbGT, use_activation=False):
     model = model
     get_markers = markers_fun(model)
@@ -52,18 +55,18 @@ def compute_err(init_offset, X_est, U_est, Ns, model, q, dq, tau,
         muscles_ref = activations[:, 0:Ns]
     sol_mark = np.zeros((3, model.nbMarkers(), Ns + 1))
     sol_mark_ref = np.zeros((3, model.nbMarkers(), Ns + 1))
-    err['q'] = np.sqrt(np.square(X_est[:model.nbQ(), init_offset:] - q_ref[:, init_offset:]).mean(axis=1)).mean()
+    err['q'] = np.sqrt(np.square(X_est[:model.nbQ(), init_offset:-final_offset] - q_ref[:, init_offset:-final_offset]).mean(axis=1)).mean()
     err['q_dot'] = np.sqrt(
-        np.square(X_est[model.nbQ():model.nbQ() * 2, init_offset:] - dq_ref[:, init_offset:]).mean(axis=1)).mean()
-    err['tau'] = np.sqrt(np.square(U_est[:nbGT, init_offset:-1] - tau_ref[:, init_offset:]).mean(axis=1)).mean()
-    err['muscles'] = np.sqrt(np.square(U_est[nbGT:, init_offset:-1] - muscles_ref[:, init_offset:]).mean(axis=1)).mean()
+        np.square(X_est[model.nbQ():model.nbQ() * 2, init_offset:-final_offset] - dq_ref[:, init_offset:-final_offset]).mean(axis=1)).mean()
+    err['tau'] = np.sqrt(np.square(U_est[:nbGT, init_offset:-final_offset-1] - tau_ref[:, init_offset:-final_offset]).mean(axis=1)).mean()
+    err['muscles'] = np.sqrt(np.square(U_est[nbGT:, init_offset:-final_offset-1] - muscles_ref[:, init_offset:-final_offset]).mean(axis=1)).mean()
     for i in range(Ns + 1):
         sol_mark[:, :, i] = get_markers(X_est[:model.nbQ(), i])
     sol_mark_tmp = np.zeros((3, sol_mark_ref.shape[1], Ns + 1))
     for i in range(Ns + 1):
         sol_mark_tmp[:, :, i] = get_markers(q[:, i])
     sol_mark_ref = sol_mark_tmp[:, :, 0:Ns + 1]
-    err['markers'] = np.sqrt(np.square(sol_mark[:, :, init_offset:] - sol_mark_ref[:, :, init_offset:]).mean(axis=1)).mean()
+    err['markers'] = np.sqrt(np.square(sol_mark[:, :, init_offset:-final_offset] - sol_mark_ref[:, :, init_offset:-final_offset]).mean(axis=1)).mean()
     return err
 
 def warm_start_mhe(ocp, sol, use_activation=False):
@@ -104,3 +107,12 @@ def get_MHE_time_lenght(Ns_mhe, use_activation=False):
                         0.064, 0.064,  # 1 sample on 8
                         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
     return times_lenght[Ns_mhe-2]
+
+def muscles_forces(q, qdot, act, controls, model):
+    muscles_states = biorbd.VecBiorbdMuscleState(model.nbMuscles())
+    for k in range(model.nbMuscles()):
+        muscles_states[k].setExcitation(controls[k])
+        muscles_states[k].setActivation(act[k])
+    # muscles_tau = model.muscularJointTorque(muscles_states, True,  q, qdot).to_mx()
+    muscles_force = model.muscleForces(muscles_states, q, qdot).to_mx()
+    return muscles_force
